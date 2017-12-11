@@ -19,8 +19,8 @@
 
 using namespace std;
 
-#define XDIM 300
-#define YDIM 200
+#define XDIM 400
+#define YDIM 150
 
 #define Re 1
 #define C_S 0.577
@@ -41,8 +41,8 @@ const double centre[2] = { XDIM/2., 0.};
 
 //const double c_space = LENGTH/2.;
 
-const int c_num = 6;		
-const int c_sets = 6/c_num;
+const int c_num = 8;		
+const int c_sets = 8/c_num;
 
 const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
 
@@ -476,7 +476,7 @@ int main()
 
 	string parameters = raw_data + "/SimLog.txt";
 
-	string input = "Data/cilium/";
+	string input = 'C:/Users/phq16ja/Documents/Data/Cilium/Raw/Mk3/100000/';//"Data/cilium/";
 	input += to_string(c_num);
 
 	ifstream fsA(input.c_str());
