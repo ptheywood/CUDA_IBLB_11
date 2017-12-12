@@ -1,6 +1,6 @@
-Tue Dec 12 12:08:53 2017
+Tue Dec 12 15:44:07 2017
 
-Size: 400x150
+Size: 500x150
 Iterations: 100000
 Reynolds Number: 1
 Relaxation times: 2.90291, 0.53468
@@ -12,4 +12,7 @@ Time discretisation error: 4.489e-13
 Compressibility error: 124.694
 
 Threads per block: 500
-Blocks: 120
+Blocks: 150
+
+Completion time: Tue Dec 12 22:17:30 2017
+

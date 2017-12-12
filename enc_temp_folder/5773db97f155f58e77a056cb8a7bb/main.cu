@@ -662,8 +662,7 @@ int main()
 
 		if (phase == 0) phase = T;
 
-		//input = "C:/Users/phq16ja/Documents/Data/Cilium/Raw/Mk3/100000/";
-		input = "//uosfstore.shef.ac.uk/shared/soft_matter_physics1/User/Phq16ja/Cilium";
+		input = "C:/Users/phq16ja/Documents/Data/Cilium/Raw/Mk3/100000/";
 		input += to_string(c_num);
 		input += "/";
 		input += "cilia-";
