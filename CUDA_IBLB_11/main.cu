@@ -19,8 +19,8 @@
 
 using namespace std;
 
-#define XDIM 500
-#define YDIM 150
+#define XDIM 300
+#define YDIM 200
 
 #define Re 1
 #define C_S 0.577
@@ -41,7 +41,7 @@ const double centre[2] = { XDIM/2., 0.};
 
 //const double c_space = LENGTH/2.;
 
-const int c_num = 10;		
+const int c_num = 6;		
 const int c_sets = 1;
 
 const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
@@ -460,8 +460,8 @@ int main()
 	}
 
 	//----------------------------------------DEFINE DIRECTORIES----------------------------------
-
-	string raw_data = "Data/Raw/";
+	//string raw_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/Raw/";
+	string raw_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/Raw/";
 	
 	raw_data += to_string(c_num);
 
@@ -662,8 +662,8 @@ int main()
 
 		if (phase == 0) phase = T;
 
-		//input = "C:/Users/phq16ja/Documents/Data/Cilium/Raw/Mk3/100000/";
-		input = "//uosfstore.shef.ac.uk/shared/soft_matter_physics1/User/Phq16ja/Cilium";
+		//input = "/shared/soft_matter_physics2/User/Phq16ja/Cilium/";
+		input = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Cilium/";
 		input += to_string(c_num);
 		input += "/";
 		input += "cilia-";
