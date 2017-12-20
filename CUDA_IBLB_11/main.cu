@@ -24,8 +24,8 @@ using namespace std;
 
 #define Re 1
 #define C_S 0.577
-#define ITERATIONS 100000
-#define INTERVAL 1000
+#define ITERATIONS 10
+#define INTERVAL 1
 #define RHO_0 1.
 
 #define LENGTH 100
@@ -822,7 +822,7 @@ int main()
 		{
 			last = it - INTERVAL;
 
-			print(rho, u, raw_data, it);
+			//print(rho, u, raw_data, it);
 			
 
 			if (last >= INTERVAL)
