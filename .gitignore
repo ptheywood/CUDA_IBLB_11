@@ -241,3 +241,4 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 /enc_temp_folder/b37e377cc03b40aa3a5ddc23532fe4f6
+/CUDA_IBLB_11/Data/Test

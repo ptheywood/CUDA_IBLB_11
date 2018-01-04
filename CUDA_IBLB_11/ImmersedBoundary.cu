@@ -47,7 +47,7 @@ __device__ double delta(const double & xs, const double & ys, const int & x, con
 	return delta;
 }
 
-__global__ void interpolate(const double * rho, const double * u, const int * Ns, const double * u_s, double * F_s, const double * s, const int * XDIM)
+__global__ void interpolate(const double * rho, const double * u, const int Ns, const double * u_s, double * F_s, const double * s, const int XDIM)
 {
 
 	int i(0), j(0), k(0), x0(0), y0(0), x(0), y(0);
@@ -73,7 +73,7 @@ __global__ void interpolate(const double * rho, const double * u, const int * Ns
 			x = nearbyint(x0 + c_l[i * 2 + 0]);
 			y = nearbyint(y0 + c_l[i * 2 + 1]);
 
-			j = y*XDIM[0] + x;
+			j = y*XDIM + x;
 
 			//std::cout << delta << std::endl;
 
@@ -84,7 +84,7 @@ __global__ void interpolate(const double * rho, const double * u, const int * Ns
 	}
 }
 
-__global__ void spread(const double * rho, double * u, const double * f, const int * Ns, const double * u_s, const double * F_s, double * force, const double * s, const int * XDIM, double * Q)
+__global__ void spread(const double * rho, double * u, const double * f, const int Ns, const double * u_s, const double * F_s, double * force, const double * s, const int XDIM, double Q)
 {
 	int i(0), j(0), k(0), x(0), y(0);
 
@@ -100,10 +100,10 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 		force[2 * j + 1] = 0.;
 
 
-		x = j%XDIM[0];
-		y = (j - j%XDIM[0]) / XDIM[0];
+		x = j%XDIM;
+		y = (j - j%XDIM) / XDIM;
 
-		for (k = 0; k < Ns[0]; k++)
+		for (k = 0; k < Ns; k++)
 		{
 			xs = s[k * 2 + 0];
 			ys = s[k * 2 + 1];
@@ -124,10 +124,10 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 		u[2 * j + 0] = (momentum[0] + 0.5*force[2 * j + 0]) / rho[j];
 		u[2 * j + 1] = (momentum[1] + 0.5*force[2 * j + 1]) / rho[j];
 
-		if (x == XDIM[0] - 5)
+		if (x == XDIM - 5)
 		{
 
-				Q[0] += u[2 * j + 0];
+				Q += u[2 * j + 0];
 
 		}
 	}

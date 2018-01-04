@@ -27,7 +27,7 @@ __device__ const double t[9] =					//WEIGHT VALUES
 };
 
 
-__global__ void equilibrium(const double * u, const double * rho, double * f0, const double * force, double * F, int * XDIM, int * YDIM, double * TAU)
+__global__ void equilibrium(const double * u, const double * rho, double * f0, const double * force, double * F, int XDIM, int YDIM, double TAU)
 {
 	unsigned int i(0), j(0);
 
@@ -51,13 +51,13 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 			vec[0] = (c_l[i * 2 + 0] - u[i * 2 + 0]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[i * 2 + 0] + c_l[i * 2 + 1] * u[i * 2 + 1]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 0];
 			vec[1] = (c_l[i * 2 + 1] - u[i * 2 + 1]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[i * 2 + 0] + c_l[i * 2 + 1] * u[i * 2 + 1]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 1];
 
-			F[9 * j + i] = (1. - 1. / (2. * TAU[0]))*t[i] * (vec[0] * force[j * 2 + 0] + vec[1] * force[j * 2 + 1]);
+			F[9 * j + i] = (1. - 1. / (2. * TAU))*t[i] * (vec[0] * force[j * 2 + 0] + vec[1] * force[j * 2 + 1]);
 			
 		}
 	}
 }
 
-__global__ void collision(const double * f0, const double * f, double * f1, const double * F, double * TAU, double * TAU2, int * XDIM, int * YDIM, int * it)
+__global__ void collision(const double * f0, const double * f, double * f1, const double * F, double TAU, double TAU2, int XDIM, int YDIM, int it)
 {
 	unsigned int j(0);
 
@@ -65,8 +65,8 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 	//double u_set[2] = { 0.00004,0. };
 	//double u_s[2] = { 0.,0. };
 
-	double omega_plus = 1 / TAU[0];
-	double omega_minus = 1 / TAU2[0];
+	double omega_plus = 1 / TAU;
+	double omega_minus = 1 / TAU2;
 
 	double f_plus(0.), f_minus(0.), f0_plus(0.), f0_minus(0.);
 
@@ -164,7 +164,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 	}
 }
 
-__global__ void streaming(const double * f1, double * f, int * XDIM, int * YDIM)
+__global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 {
 	
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
@@ -180,8 +180,8 @@ __global__ void streaming(const double * f1, double * f, int * XDIM, int * YDIM)
 	{
 		j = threadnum;
 
-		x = j%XDIM[0];
-		y = (j - j%XDIM[0]) / XDIM[0];
+		x = j%XDIM;
+		y = (j - j%XDIM) / XDIM;
 
 		//------------------------------------WALL CONDITIONS------------------------------------------------
 
@@ -190,10 +190,10 @@ __global__ void streaming(const double * f1, double * f, int * XDIM, int * YDIM)
 		left = 0;
 		right = 0;
 
-		if (y == YDIM[0] - 1) up = 1;
+		if (y == YDIM - 1) up = 1;
 		if (y == 0) down = 1;
 		if (x == 0) left = 1;
-		if (x == XDIM[0] - 1) right = 1;
+		if (x == XDIM - 1) right = 1;
 
 		for (i = 0; i < 9; i++)
 		{
@@ -347,13 +347,13 @@ __global__ void streaming(const double * f1, double * f, int * XDIM, int * YDIM)
 			}
 			else if (thru && !done)
 			{
-				jstream = j - (XDIM[0]-1)*c_l[i * 2 + 0] + XDIM[0]*c_l[i * 2 + 1]; //THROUGH STREAM
+				jstream = j - (XDIM-1)*c_l[i * 2 + 0] + XDIM*c_l[i * 2 + 1]; //THROUGH STREAM
 
 				k = i;
 			}
 			else if (!done)
 			{
-				jstream = j + c_l[i * 2 + 0] + XDIM[0]*c_l[i * 2 + 1]; //NORMAL STREAM
+				jstream = j + c_l[i * 2 + 0] + XDIM*c_l[i * 2 + 1]; //NORMAL STREAM
 
 				k = i;
 			}
@@ -364,7 +364,7 @@ __global__ void streaming(const double * f1, double * f, int * XDIM, int * YDIM)
 
 }
 
-__global__ void macro(const double * f, double * u, double * rho, int * XDIM, int * YDIM)
+__global__ void macro(const double * f, double * u, double * rho, int XDIM, int YDIM)
 {
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
