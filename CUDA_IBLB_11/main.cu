@@ -6,6 +6,7 @@
 #include <string>
 #include <iomanip>
 #include <ctime>
+#include <sstream>
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -19,43 +20,18 @@
 
 using namespace std;
 
-#define XDIM 300
-#define YDIM 200
+//------------------------------------------PHYSICAL CONSTANTS----------------------------
 
-#define Re 1
-#define C_S 0.577
-#define ITERATIONS 10000
-#define INTERVAL 100
-#define RHO_0 1.
-
-#define LENGTH 100
-#define T 100000
-#define SPEED 0.008
-
-#define PI 3.14159
-
-
-const double centre[2] = { XDIM/2., 0.};
-
-//const int p_step = nearbyint(T/25);
-
-//const double c_space = LENGTH/2.;
-
-const int c_num = 6;		
-const int c_sets = 1;
-
-const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
-
-const double TAU2 = 1. / (12.*(TAU - (1. / 2.))) + (1. / 2.);
+#define C_S 0.577		//SPEED OF SOUND ON LATTICE
+#define RHO_0 1.		//FLUID DENSITY
+#define PI 3.14159		//PI
 
 //-------------------------------------------PARAMETER SCALING----------------------------
-
-double dt = 1. / (T);
-double dx = 1. / LENGTH;
 
 double l_0 = 0.000006;					//6 MICRON CILIUM LENGTH
 double t_0 = 0.067;						//67ms BEAT PERIOD AT 15Hz
 
+/*
 void print(const double * r, const double * z, const string& directory, const int& time)
 {
 	unsigned int j(0);
@@ -95,6 +71,7 @@ void print(const double * r, const double * z, const string& directory, const in
 	rawfile.close();
 
 }
+*/
 /*
 void plot(const string& data_dir, const string& directory, const int& time)
 {
@@ -174,7 +151,7 @@ void plot(const string& data_dir, const string& directory, const int& time)
 */
 
 
-__global__ void define_filament(const int m, const int it, const double offset, double * s, double * lasts)
+__global__ void define_filament(const int m, const int T, const int it, const double offset, double * s, double * lasts)
 {
 	int n(0);
 
@@ -260,7 +237,7 @@ __global__ void define_filament(const int m, const int it, const double offset, 
 	}
 }
 
-__global__ void define_boundary(const int m, const double * boundary, double * b_points)
+__global__ void define_boundary(const int m, const int c_num, const double * boundary, double * b_points)
 {
 	int j(0), k(0);
 	double b_length(0.);
@@ -307,9 +284,39 @@ __global__ void define_boundary(const int m, const double * boundary, double * b
 }
 
 
-int main()
+int main(int argc, char * argv[])
 {
 	//----------------------------INITIALISING----------------------------
+
+	int c_num = 6;
+	int c_sets = 1;
+	double Re = 1;
+	int XDIM = 300;
+	int YDIM = 200;
+	int T = 100000;
+	int ITERATIONS = T;
+	int INTERVAL = 100;
+	int LENGTH = 100;
+	
+
+	stringstream arg(argv[1]);
+
+	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6];
+
+	arg >> c_num >> c_sets >> Re >> T >> ITERATIONS >> INTERVAL;
+
+
+	double c_space = LENGTH / 2.;
+	XDIM = c_num*c_sets*c_space;
+	const double centre[2] = { XDIM / 2., 0. };
+
+	double dx = 1. / LENGTH;
+	double dt = 1. / (T);
+	double  SPEED = 0.8*1000/T;
+
+	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
+	const double TAU2 = 1. / (12.*(TAU - (1. / 2.))) + (1. / 2.);
+
 	time_t rawtime;
 	struct tm * timeinfo;
 	time(&rawtime);
@@ -326,7 +333,7 @@ int main()
 	int phase(0);
 	int p_step = T / c_num;
 
-	double c_space = LENGTH / 2.;
+	
 	double offset = 0.;
 
 	double * lasts;
@@ -471,6 +478,8 @@ int main()
 
 	double * d_epsilon;
 
+	double * d_Q;
+
 	
 
 	double * d_lasts;
@@ -523,6 +532,11 @@ int main()
 			fprintf(stderr, "cudaMalloc failed!");
 		}
 
+		cudaStatus = cudaMalloc((void**)&d_Q, sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc failed!");
+		}
+
 	}
 
 	{
@@ -567,7 +581,7 @@ int main()
 	//----------------------------------------DEFINE DIRECTORIES----------------------------------
 	//string raw_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/Raw/";
 	//string raw_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/Raw/Test/";
-	string raw_data = "Data/Test/Raw";
+	string raw_data = "Data/Test/Raw/";
 
 	//raw_data += to_string(c_num);
 
@@ -678,6 +692,12 @@ int main()
 		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of boundary failed!"); }
 
 
+		cudaStatus = cudaMemcpy(d_Q, &Q, sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+
+
 	}
 
 	//------------------------------------------------------SET INITIAL DISTRIBUTION TO EQUILIBRIUM-------------------------------------------------
@@ -767,12 +787,12 @@ int main()
 				offset = 1.*(m - (c_num - 1) / 2.)*c_space;
 
 
-				define_filament << <10, 1000 >> > (m, phase, offset, d_boundary, d_lasts);
+				define_filament << <10, 1000 >> > (m, T, phase, offset, d_boundary, d_lasts);
 
 				cudaStatus = cudaGetLastError();
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_filament failed: %s\n", cudaGetErrorString(cudaStatus)); }
 
-				define_boundary << <1, 100 >> > (m, d_boundary, d_b_points);
+				define_boundary << <1, 100 >> > (m, c_num, d_boundary, d_b_points);
 
 				cudaStatus = cudaGetLastError();
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_boundary failed: %s\n", cudaGetErrorString(cudaStatus)); }
@@ -886,7 +906,7 @@ int main()
 			}
 		}
 
-		spread << <gridsize, blocksize >> > (d_rho, d_u, d_f, Ns, d_u_s, d_F_s, d_force, d_s, XDIM, Q);	//IB SPREADING STEP
+		spread << <gridsize, blocksize >> > (d_rho, d_u, d_f, Ns, d_u_s, d_F_s, d_force, d_s, XDIM, d_Q);	//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -908,6 +928,10 @@ int main()
 				fprintf(stderr, "cudaMemcpy of u failed!\n");
 			}
 
+			cudaStatus = cudaMemcpy(&Q, d_Q, sizeof(double), cudaMemcpyDeviceToHost);
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMemcpy of u failed!\n");
+			}
 		}
 
 		//----------------------------DATA OUTPUT------------------------------
@@ -915,7 +939,26 @@ int main()
 		{
 			last = it - INTERVAL;
 
-			print(rho, u, raw_data, it);
+			//print(rho, u, raw_data, it);
+
+			outfile = raw_data + to_string(it) + "-fluid.dat";
+
+			fsA.open(outfile.c_str());
+
+			for (j = 0; j < XDIM*YDIM; j++)
+			{
+				int x = j%XDIM;
+				int y = (j - j%XDIM) / XDIM;
+
+				double ab = sqrt(u[2 * j + 0] * u[2 * j + 0] + u[2 * j + 1] * u[2 * j + 1]);
+
+				fsA << x << "\t" << y << "\t" << u[2 * j + 0] << "\t" << u[2 * j + 1] << "\t" << ab << "\t" << rho[j] << endl;
+
+
+				if (x == XDIM - 1) fsA << endl;
+			}
+
+			fsA.close();
 
 			outfile = cilia_data + to_string(it) + "-cilia.dat";
 
