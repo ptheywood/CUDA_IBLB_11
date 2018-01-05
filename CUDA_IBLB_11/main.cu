@@ -297,13 +297,15 @@ int main(int argc, char * argv[])
 	int ITERATIONS = T;
 	int INTERVAL = 100;
 	int LENGTH = 100;
+	int device;
+	bool ShARC = 0;
 	
 
 	stringstream arg(argv[1]);
 
-	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6];
+	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8];
 
-	arg >> c_num >> c_sets >> Re >> T >> ITERATIONS >> INTERVAL;
+	arg >> c_num >> c_sets >> Re >> T >> ITERATIONS >> INTERVAL >> device >> ShARC;
 
 
 	double c_space = LENGTH / 2.;
@@ -390,7 +392,11 @@ int main(int argc, char * argv[])
 
 	double Q = 0.;
 
-	
+	cudaStatus = cudaSetDevice(device);
+
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "Failed to set CUDA device.\n");
+	}
 
 	//------------------------------------------ERROR------------------------------------------------
 
@@ -579,20 +585,27 @@ int main(int argc, char * argv[])
 	}
 
 	//----------------------------------------DEFINE DIRECTORIES----------------------------------
-	//string raw_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/Raw/";
-	//string raw_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/Raw/Test/";
-	string raw_data = "Data/Test/Raw/";
+	
+	string output_data = "Data/Test/";
 
-	//raw_data += to_string(c_num);
+	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
+	else output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
-	string cilia_data = "Data/Test/Cilia/";
+	string raw_data = output_data + "Raw/";
+	raw_data += to_string(c_num);
+	raw_data += "/";
 
-	string outfile = cilia_data;
+	string cilia_data =  output_data + "Cilia/";
+	cilia_data += to_string(c_num);
+	cilia_data += "/";
 
-	string img_data = "Data/Test/Img/";
+	string img_data = output_data + "Img/";
+	img_data += to_string(c_num);
+	img_data += "/";
 	
 	img_data += to_string(c_num);
 
+	string outfile = cilia_data;
 
 	//----------------------------------------BOUNDARY INITIALISATION------------------------------------------------
 
@@ -1050,6 +1063,8 @@ int main(int argc, char * argv[])
 	fsC << "Net Q = " << Q << " Avg Q = " << Q / 1.*(it / T) << endl;
 
 	fsC.close();
+
+	cudaDeviceReset();
 
 
 	return 0;
