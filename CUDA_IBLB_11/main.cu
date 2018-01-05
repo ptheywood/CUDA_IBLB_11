@@ -297,15 +297,15 @@ int main(int argc, char * argv[])
 	int ITERATIONS = T;
 	int INTERVAL = 100;
 	int LENGTH = 100;
-	int device;
 	bool ShARC = 0;
+	bool BigData = 0;
 	
 
 	stringstream arg(argv[1]);
 
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8];
 
-	arg >> c_num >> c_sets >> Re >> T >> ITERATIONS >> INTERVAL >> device >> ShARC;
+	arg >> c_num >> c_sets >> Re >> T >> ITERATIONS >> INTERVAL >> ShARC >> BigData;
 
 
 	double c_space = LENGTH / 2.;
@@ -392,7 +392,8 @@ int main(int argc, char * argv[])
 
 	double Q = 0.;
 
-	cudaStatus = cudaSetDevice(device);
+	if(ShARC) cudaStatus = cudaSetDevice(3);
+	else cudaStatus = cudaSetDevice(0);
 
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "Failed to set CUDA device.\n");
@@ -952,46 +953,41 @@ int main(int argc, char * argv[])
 		{
 			last = it - INTERVAL;
 
-			//print(rho, u, raw_data, it);
-
 			outfile = raw_data + to_string(it) + "-fluid.dat";
 
 			fsA.open(outfile.c_str());
 
-			for (j = 0; j < XDIM*YDIM; j++)
+			if (BigData)
 			{
-				int x = j%XDIM;
-				int y = (j - j%XDIM) / XDIM;
+				for (j = 0; j < XDIM*YDIM; j++)
+				{
+					int x = j%XDIM;
+					int y = (j - j%XDIM) / XDIM;
 
-				double ab = sqrt(u[2 * j + 0] * u[2 * j + 0] + u[2 * j + 1] * u[2 * j + 1]);
+					double ab = sqrt(u[2 * j + 0] * u[2 * j + 0] + u[2 * j + 1] * u[2 * j + 1]);
 
-				fsA << x << "\t" << y << "\t" << u[2 * j + 0] << "\t" << u[2 * j + 1] << "\t" << ab << "\t" << rho[j] << endl;
+					fsA << x << "\t" << y << "\t" << u[2 * j + 0] << "\t" << u[2 * j + 1] << "\t" << ab << "\t" << rho[j] << endl;
 
 
-				if (x == XDIM - 1) fsA << endl;
+					if (x == XDIM - 1) fsA << endl;
+				}
+
+				fsA.close();
+
+				outfile = cilia_data + to_string(it) + "-cilia.dat";
+
+				fsA.open(outfile.c_str());
+
+				for (k = 0; k < Ns; k++)
+				{
+					fsA << s[2 * k + 0] << "\t" << s[2 * k + 1] << "\t" << u_s[2 * k + 0] << "\t" << u_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
+					if (k % 100 == 99 || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
+				}
+
+				fsA.close();
+
 			}
-
-			fsA.close();
-
-			outfile = cilia_data + to_string(it) + "-cilia.dat";
-
-			fsA.open(outfile.c_str());
-
-			for (k = 0; k < Ns; k++)
-			{
-				fsA << s[2 * k + 0] << "\t" << s[2 * k + 1] << "\t" << u_s[2 * k + 0] << "\t" << u_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
-				if (k % 100 == 99 || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
-			}
-
-			fsA.close();
 			
-
-			if (last >= INTERVAL)
-			{
-				//plot(raw_data, img_data, last);
-				
-			}
-
 			fsB.open(flux.c_str(), ofstream::app);
 
 			fsB << it*1000.*dt*t_0 << "\t" << Q*1000000. * dx*l_0*1000000. * dx*l_0 << endl;
