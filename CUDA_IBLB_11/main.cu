@@ -274,7 +274,7 @@ __global__ void define_boundary(const int m, const int c_num, const double * bou
 			else
 			{
 				b_points[5 * (k + m * 100) + 0] = 0.;
-				b_points[5 * (k + m * 100) + 1] = 150.;
+				b_points[5 * (k + m * 100) + 1] = 250.;
 
 				b_points[5 * (k + m * 100) + 2] = 0.1;
 				b_points[5 * (k + m * 100) + 3] = 0.1;
@@ -288,27 +288,27 @@ int main(int argc, char * argv[])
 {
 	//----------------------------INITIALISING----------------------------
 
-	int c_num = 6;
-	int c_sets = 1;
-	double Re = 1;
-	int XDIM = 300;
-	int YDIM = 200;
-	int T = 100000;
-	int ITERATIONS = T;
-	int INTERVAL = 100;
-	int LENGTH = 100;
+	unsigned int c_num = 6;
+	unsigned int c_sets = 1;
+	double Re = 1.0;
+	unsigned int XDIM = 300;
+	unsigned int YDIM = 200;
+	unsigned int T = 100000;
+	unsigned int ITERATIONS = T;
+	unsigned int INTERVAL = 100;
+	unsigned int LENGTH = 100;
 	bool ShARC = 0;
 	bool BigData = 0;
 	
 
-	stringstream arg(argv[1]);
+	stringstream arg;
 
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8];
 
 	arg >> c_num >> c_sets >> Re >> T >> ITERATIONS >> INTERVAL >> ShARC >> BigData;
 
 
-	double c_space = LENGTH / 2.;
+	unsigned int c_space = LENGTH / 2;
 	XDIM = c_num*c_sets*c_space;
 	const double centre[2] = { XDIM / 2., 0. };
 
@@ -330,8 +330,7 @@ int main(int argc, char * argv[])
 
 	unsigned int i(0), j(0), k(0), n(0), m(0);
 
-	int it(0);
-	int last(0);
+	unsigned int it(0);
 	int phase(0);
 	int p_step = T / c_num;
 
@@ -406,7 +405,7 @@ int main(int argc, char * argv[])
 	double t_error = (t_0*dt)*(t_0*dt);
 	double c_error = (t_0*dt)*(t_0*dt) / ((l_0*dx)*(l_0*dx));
 	double Ma = 1.*SPEED / C_S;
-	double p_runtime;
+	time_t p_runtime;
 
 
 	//-------------------------------------------ASSIGN CELL VALUES ON HEAP-----------------------------
@@ -439,7 +438,7 @@ int main(int argc, char * argv[])
 
 	F = new double[9 * size];
 
-	int Ns = LENGTH * c_num * c_sets;		//NUMBER OF BOUNDARY POINTS
+	unsigned int Ns = LENGTH * c_num * c_sets;		//NUMBER OF BOUNDARY POINTS
 
 
 	double * s;							//BOUNDARY POINTS
@@ -784,7 +783,7 @@ int main(int argc, char * argv[])
 	//--------------------------ITERATION LOOP-----------------------------
 	cout << "Running Simulation...\n";
 
-	double start = seconds();
+	time_t start = seconds();
 
 	for (it = 0; it < ITERATIONS; it++)
 	{
@@ -951,8 +950,6 @@ int main(int argc, char * argv[])
 		//----------------------------DATA OUTPUT------------------------------
 		if (it % INTERVAL == 0)
 		{
-			last = it - INTERVAL;
-
 			outfile = raw_data + to_string(it) + "-fluid.dat";
 
 			fsA.open(outfile.c_str());
@@ -998,7 +995,7 @@ int main(int argc, char * argv[])
 
 		if (it == INTERVAL)
 		{
-			double cycle = seconds();
+			time_t cycle = seconds();
 
 			p_runtime = (cycle - start)*(ITERATIONS / INTERVAL);
 
@@ -1007,7 +1004,7 @@ int main(int argc, char * argv[])
 			timeinfo = localtime(&p_end);
 
 			int hours(0), mins(0);
-			double secs(0.);
+			time_t secs(0.);
 
 			if (p_runtime > 3600) hours = nearbyint(p_runtime / 3600 - 0.5);
 			if (p_runtime > 60) mins = nearbyint((p_runtime - hours * 3600) / 60 - 0.5);
