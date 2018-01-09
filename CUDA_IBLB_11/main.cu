@@ -283,6 +283,62 @@ __global__ void define_boundary(const int m, const int c_num, const double * bou
 	}
 }
 
+void boundary_check(const int m, const double c_space, const int c_num, const int c_sets, const int L, const double * s, int * epsilon)
+{
+	int r(0), k(0), l(0);
+
+	int b_cross = 0;
+	int lowest = 0;
+
+	bool xclose = 0;
+	bool yclose = 0;
+
+	int r_max = 2 * L / c_space;
+
+	double x_m(0.), y_m(0.), x_l(0.), y_l(0.);
+
+	for (r = 1; r <= r_max; r++)
+	{
+		
+
+		b_cross = 2 * L - r*c_space;
+
+		if (b_cross > L) lowest = 0;
+		else lowest = L - b_cross;
+
+		for (k = lowest; k < L; k++)
+		{
+			x_m = s[2 * (k + m * 100) + 0];
+			y_m = s[2 * (k + m * 100) + 1];
+
+			for (l = lowest; l < L; l++)
+			{
+				xclose = 0;
+				yclose = 0;
+
+				if (m-r < 0)
+				{
+					x_l = s[2 * (l + (m - r + c_num*c_sets) * 100) + 0];
+					y_l = s[2 * (l + (m - r + c_num*c_sets) * 100) + 1];
+				}
+				else
+				{
+					x_l = s[2 * (l + (m - r) * 100) + 0];
+					y_l = s[2 * (l + (m - r) * 100) + 1];
+				}
+
+				if (abs(x_l - x_m) < 1) xclose = 1;
+
+				if (abs(y_l - y_m) < 1) yclose = 1;
+
+				if (xclose && yclose) epsilon[(k + m * 100)] = 0;
+
+			}
+		}
+	}
+
+}
+
 
 int main(int argc, char * argv[])
 {
@@ -363,6 +419,8 @@ int main(int argc, char * argv[])
 		lasts[2 * k + 1] = 0.;
 
 	}
+
+	
 
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
@@ -447,7 +505,7 @@ int main(int argc, char * argv[])
 
 	double * F_s;						//BOUNDARY FORCE
 
-	double * epsilon;
+	int * epsilon;
 
 	s = new double[2 * Ns];
 
@@ -455,7 +513,12 @@ int main(int argc, char * argv[])
 
 	F_s = new double[2 * Ns];
 
-	epsilon = new double[Ns];
+	epsilon = new int[Ns];
+
+	for (k = 0; k < Ns; k++)
+	{
+		epsilon[k] = 1;
+	}
 
 
 	//----------------------------------------CREATE DEVICE VARIABLES-----------------------------
@@ -482,7 +545,7 @@ int main(int argc, char * argv[])
 
 	double * d_u_s;
 
-	double * d_epsilon;
+	int * d_epsilon;
 
 	double * d_Q;
 
@@ -562,7 +625,7 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMalloc of u_s failed!\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_epsilon, Ns * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_epsilon, Ns * sizeof(int));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of epsilon failed!\n");
 		}
@@ -589,7 +652,8 @@ int main(int argc, char * argv[])
 	string output_data = "Data/Test/";
 
 	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
-	else output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
+	else output_data = "C:/Users/phq16ja/Documents/Data/";
+		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
 	string raw_data = output_data + "Raw/";
 	raw_data += to_string(c_num);
@@ -814,6 +878,8 @@ int main(int argc, char * argv[])
 				cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
 
+				//boundary_check(m, c_space, c_num, c_sets, LENGTH, b_points);
+
 			}
 
 			for (j = 0; j < c_num*LENGTH; j++)
@@ -838,18 +904,22 @@ int main(int argc, char * argv[])
 				u_s[2 * k + 1] = b_points[5 * j + 3];
 				}
 
-				epsilon[k] = 1;//b_points[5 * j + 4];
+				epsilon[k] = 1;
 			}
-
-			
-			
 		}
 
+		for (n = 0; n < c_sets; n++)
+		{
+			for (m = 0; m < c_num; m++)
+			{
+				boundary_check(m, c_space, c_num, c_sets, LENGTH, s, epsilon);
+			}
+		}
 		//---------------------------CILIUM COPY---------------------------------------- 
 
 		{
 
-			cudaStatus = cudaMemcpy(d_epsilon, epsilon, Ns * sizeof(double), cudaMemcpyHostToDevice);
+			cudaStatus = cudaMemcpy(d_epsilon, epsilon, Ns * sizeof(int), cudaMemcpyHostToDevice);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of epsilon failed!\n");
 			}
@@ -919,7 +989,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		spread << <gridsize, blocksize >> > (d_rho, d_u, d_f, Ns, d_u_s, d_F_s, d_force, d_s, XDIM, d_Q);	//IB SPREADING STEP
+		spread << <gridsize, blocksize >> > (d_rho, d_u, d_f, Ns, d_u_s, d_F_s, d_force, d_s, XDIM, d_Q, d_epsilon);	//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
