@@ -31,125 +31,6 @@ using namespace std;
 double l_0 = 0.000006;					//6 MICRON CILIUM LENGTH
 double t_0 = 0.067;						//67ms BEAT PERIOD AT 15Hz
 
-/*
-void print(const double * r, const double * z, const string& directory, const int& time)
-{
-	unsigned int j(0);
-
-	int x(0), y(0);
-
-	double ab(0);
-
-	string output = directory;
-	output += "/";
-	output += to_string(time);
-
-	output += "-vector";
-	output += ".dat";
-
-	ofstream rawfile(output.c_str());
-
-	rawfile.open(output.c_str(), ofstream::trunc);
-	rawfile.close();
-
-	rawfile.open(output.c_str(), ofstream::app);
-
-	
-	for (j = 0; j < XDIM*YDIM; j++)
-	{
-		x = j%XDIM;
-		y = (j - j%XDIM) / XDIM;
-
-		ab = sqrt(z[2 * j + 0] * z[2 * j + 0] + z[2 * j + 1] * z[2 * j + 1]);
-
-		rawfile << x << "\t" << y << "\t" << z[2 * j + 0] << "\t" << z[2 * j + 1] << "\t" << ab << "\t" << r[j] << endl;
-
-		
-		if (x == XDIM - 1) rawfile << endl; 
-	}
-
-	rawfile.close();
-
-}
-*/
-/*
-void plot(const string& data_dir, const string& directory, const int& time)
-{
-
-	FILE* pipe = _popen("C:/gnuplot/bin/gnuplot.exe", "w");
-
-	if (pipe != NULL)
-	{
-
-		string data = data_dir;
-		data += "/";
-		data += to_string(time);
-		data += "-vector.dat";
-
-		string cilia = "Data/cilium/";
-
-		cilia += to_string(c_num);
-		cilia += "/";
-		cilia += "cilia-";
-		cilia += to_string(time);
-		cilia += ".dat";
-
-		string output = directory;
-
-		output += "/";
-		if (ITERATIONS > 10 && time < 10) output += "0";
-		if (ITERATIONS > 100 && time < 100) output += "0";
-		if (ITERATIONS > 1000 && time < 1000) output += "0";
-		if (ITERATIONS > 10000 && time < 10000) output += "0";
-		if (ITERATIONS > 100000 && time < 100000) output += "0";
-		output += to_string(time);
-		output += "-";
-		output += "S";
-
-		output += ".png";
-
-		double t_scale = 1000.*dt*t_0;
-		double t = time*t_scale;
-		double x_scale = 1000000. * dx*l_0;
-		double s_scale = 1000.*x_scale / t_scale;
-
-		fprintf(pipe, "set term win\n");
-		
-		fprintf(pipe, "unset key\n");
-		
-		fprintf(pipe, "xscale = %f\n", x_scale);
-		fprintf(pipe, "tscale = %f\n", t_scale);
-		fprintf(pipe, "sscale = %f\n", s_scale);
-		fprintf(pipe, "path1 = '%s'\n", data.c_str());
-		fprintf(pipe, "path2 = '%s'\n", cilia.c_str());
-		
-		fprintf(pipe, "set xrange[0:%f]\n", (XDIM-1)*x_scale);
-		fprintf(pipe, "set yrange[0:%f]\n", (YDIM-1)*x_scale);
-		
-		fprintf(pipe, "set palette rgb 33, 13, 10\n");
-		fprintf(pipe, "set terminal pngcairo size %d,%d\n", 2*XDIM, 2*YDIM);
-		
-		fprintf(pipe, "set cbrange[0:%f]\n", SPEED*s_scale);
-		
-		fprintf(pipe, " set cblabel 'Fluid Speed {/Symbol m}ms^{-1}' offset 0.2,0\n");
-		fprintf(pipe, "set label \"%.2fms\" at %f,%f right tc rgb \"white\" font \", 20\" front \n", t, XDIM*0.99*x_scale, YDIM*0.90*x_scale);
-		fprintf(pipe, "set output \"%s\"\n", output.c_str());
-
-		
-		fprintf(pipe, "plot path1 using ($1*xscale):($2*xscale):($5*sscale) with image, path2 using (($1+%d/2)*xscale):($2*xscale) w l lc 'black'\n", LENGTH / 2 * c_num);
-
-
-		fprintf(pipe, "unset output\n");
-		fflush(pipe);
-	}
-	else puts("Could not open gnuplot\n");
-
-	fclose(pipe);
-
-
-}
-*/
-
 
 __global__ void define_filament(const int m, const int T, const int it, const double offset, double * s, double * lasts)
 {
@@ -216,7 +97,7 @@ __global__ void define_filament(const int m, const int T, const int it, const do
 		}
 
 		s[5 * (k + m * 10000) + 0] = 1. * 115 * a_n[2 * 0 + 0] * 0.5 + offset;
-		s[5 * (k + m * 10000) + 1] = 1. * 115 * a_n[2 * 0 + 1] * 0.5 + 2;
+		s[5 * (k + m * 10000) + 1] = 1. * 115 * a_n[2 * 0 + 1] * 0.5;
 		s[5 * (k + m * 10000) + 2] = 115 * arcl;
 
 		for (n = 1; n < 7; n++)
@@ -283,7 +164,7 @@ __global__ void define_boundary(const int m, const int c_num, const double * bou
 	}
 }
 
-void boundary_check(const int m, const double c_space, const int c_num, const int c_sets, const int L, const double * s, int * epsilon)
+void boundary_check(const int m, const double c_space, const int c_num, const int L, const double * s, int * epsilon)
 {
 	int r(0), k(0), l(0);
 
@@ -318,8 +199,8 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 
 				if (m-r < 0)
 				{
-					x_l = s[2 * (l + (m - r + c_num*c_sets) * 100) + 0];
-					y_l = s[2 * (l + (m - r + c_num*c_sets) * 100) + 1];
+					x_l = s[2 * (l + (m - r + c_num) * 100) + 0];
+					y_l = s[2 * (l + (m - r + c_num) * 100) + 1];
 				}
 				else
 				{
@@ -344,8 +225,8 @@ int main(int argc, char * argv[])
 {
 	//----------------------------INITIALISING----------------------------
 
+	unsigned int c_fraction = 1;
 	unsigned int c_num = 6;
-	unsigned int c_sets = 1;
 	double Re = 1.0;
 	unsigned int XDIM = 300;
 	unsigned int YDIM = 200;
@@ -361,11 +242,11 @@ int main(int argc, char * argv[])
 
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8];
 
-	arg >> c_num >> c_sets >> Re >> T >> ITERATIONS >> INTERVAL >> ShARC >> BigData;
+	arg >> c_fraction >> c_num >> Re >> T >> ITERATIONS >> INTERVAL >> ShARC >> BigData;
 
 
 	unsigned int c_space = LENGTH / 2;
-	XDIM = c_num*c_sets*c_space;
+	XDIM = c_num*c_space;
 	const double centre[2] = { XDIM / 2., 0. };
 
 	double dx = 1. / LENGTH;
@@ -388,7 +269,7 @@ int main(int argc, char * argv[])
 
 	unsigned int it(0);
 	int phase(0);
-	int p_step = T / c_num;
+	int p_step = T * c_fraction / c_num;
 
 	
 	double offset = 0.;
@@ -429,7 +310,7 @@ int main(int argc, char * argv[])
 
 	int gridsize = size / blocksize;
 
-	int blocksize2 = c_num*c_sets*LENGTH;
+	int blocksize2 = c_num*LENGTH;
 
 	int gridsize2 = 1;
 
@@ -439,7 +320,7 @@ int main(int argc, char * argv[])
 		{
 			if ((c_num*LENGTH) % blocksize2 == 0)
 			{
-				gridsize2 = (c_num*c_sets*LENGTH) / blocksize2;
+				gridsize2 = (c_num*LENGTH) / blocksize2;
 				break;
 			}
 		}
@@ -496,7 +377,7 @@ int main(int argc, char * argv[])
 
 	F = new double[9 * size];
 
-	unsigned int Ns = LENGTH * c_num * c_sets;		//NUMBER OF BOUNDARY POINTS
+	unsigned int Ns = LENGTH * c_num;		//NUMBER OF BOUNDARY POINTS
 
 
 	double * s;							//BOUNDARY POINTS
@@ -673,7 +554,7 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------BOUNDARY INITIALISATION------------------------------------------------
 
-	string flux = raw_data + "/flux.dat";
+	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) +"-flux.dat";
 
 	string parameters = raw_data + "/SimLog.txt";
 
@@ -854,8 +735,7 @@ int main(int argc, char * argv[])
 	
 		//--------------------------CILIA BEAT DEFINITION-------------------------
 
-		for (n = 0; n < c_sets; n++)
-		{
+		
 			for (m = 0; m < c_num; m++)
 			{
 				if (it + m*p_step == T) phase = T;
@@ -878,13 +758,12 @@ int main(int argc, char * argv[])
 				cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
 
-				//boundary_check(m, c_space, c_num, c_sets, LENGTH, b_points);
-
 			}
 
+		
 			for (j = 0; j < c_num*LENGTH; j++)
 			{
-				k = j + n*c_num*LENGTH;
+				k = j;
 
 				s[2 * k + 0] = n*LENGTH / 2.*c_num + (LENGTH / 2.*c_num) / 2. + b_points[5 * j + 0];
 
@@ -900,21 +779,19 @@ int main(int argc, char * argv[])
 				}
 				else
 				{
-				u_s[2 * k + 0] = b_points[5 * j + 2];
-				u_s[2 * k + 1] = b_points[5 * j + 3];
+					u_s[2 * k + 0] = b_points[5 * j + 2];
+					u_s[2 * k + 1] = b_points[5 * j + 3];
 				}
 
 				epsilon[k] = 1;
 			}
-		}
-
-		for (n = 0; n < c_sets; n++)
+		
+		
+		for (m = 0; m < c_num; m++)
 		{
-			for (m = 0; m < c_num; m++)
-			{
-				boundary_check(m, c_space, c_num, c_sets, LENGTH, s, epsilon);
-			}
+			boundary_check(n*c_num + m, c_space, c_num, LENGTH, s, epsilon);
 		}
+		
 		//---------------------------CILIUM COPY---------------------------------------- 
 
 		{
@@ -1018,14 +895,21 @@ int main(int argc, char * argv[])
 		}
 
 		//----------------------------DATA OUTPUT------------------------------
+
+
+		double t_scale = 1000.*dt*t_0;					//milliseconds
+		double x_scale = 1000000. * dx*l_0;				//microns
+		double s_scale = 1000.*x_scale / t_scale;		//millimetres per second
+
+
 		if (it % INTERVAL == 0)
 		{
-			outfile = raw_data + to_string(it) + "-fluid.dat";
-
-			fsA.open(outfile.c_str());
-
 			if (BigData)
 			{
+				outfile = raw_data + to_string(it) + "-fluid.dat";
+
+				fsA.open(outfile.c_str());
+
 				for (j = 0; j < XDIM*YDIM; j++)
 				{
 					int x = j%XDIM;
@@ -1033,7 +917,7 @@ int main(int argc, char * argv[])
 
 					double ab = sqrt(u[2 * j + 0] * u[2 * j + 0] + u[2 * j + 1] * u[2 * j + 1]);
 
-					fsA << x << "\t" << y << "\t" << u[2 * j + 0] << "\t" << u[2 * j + 1] << "\t" << ab << "\t" << rho[j] << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << u[2 * j + 0]*s_scale << "\t" << u[2 * j + 1]*s_scale << "\t" << ab*s_scale << "\t" << rho[j] << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
@@ -1062,7 +946,6 @@ int main(int argc, char * argv[])
 			fsB.close();
 		}
 
-
 		if (it == INTERVAL)
 		{
 			time_t cycle = seconds();
@@ -1073,20 +956,20 @@ int main(int argc, char * argv[])
 
 			timeinfo = localtime(&p_end);
 
-			int hours(0), mins(0);
-			time_t secs(0.);
+			//int hours(0), mins(0);
+			//time_t secs(0.);
 
-			if (p_runtime > 3600) hours = nearbyint(p_runtime / 3600 - 0.5);
-			if (p_runtime > 60) mins = nearbyint((p_runtime - hours * 3600) / 60 - 0.5);
-			secs = p_runtime - hours * 3600 - mins * 60;
+			//if (p_runtime >= 3600) hours = nearbyint(p_runtime / 3600 - 0.5);
+			//if (p_runtime >= 60) mins = nearbyint((p_runtime - hours * 3600) / 60 - 0.5);
+			//secs = p_runtime - hours * 3600 - mins * 60;
 
-			cout << "\nProjected runtime: ";
-			if (hours < 10) cout << 0;
-			cout << hours << ":";
-			if (mins < 10) cout << 0;
-			cout << mins << ":";
-			if (secs < 10) cout << 0;
-			cout << fixed << setprecision(2) << secs;
+			//cout << "\nProjected runtime: ";
+			//if (hours < 10) cout << 0;
+			//cout << hours << ":";
+			//if (mins < 10) cout << 0;
+			//cout << mins << ":";
+			//if (secs < 10) cout << 0;
+			//cout << fixed << setprecision(2) << secs;
 
 			cout << "\nCompletion time: " << asctime(timeinfo) << endl;
 
