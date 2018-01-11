@@ -329,7 +329,7 @@ int main(int argc, char * argv[])
 	cudaError_t cudaStatus;
 
 	double Q = 0.;
-	double E = 0.;
+	double W = 0.;
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
 	else cudaStatus = cudaSetDevice(0);
@@ -784,8 +784,6 @@ int main(int argc, char * argv[])
 					u_s[2 * k + 1] = b_points[5 * j + 3];
 				}
 
-				E += u_s[2 * k + 0];
-
 				epsilon[k] = 1;
 			}
 		
@@ -895,9 +893,19 @@ int main(int argc, char * argv[])
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of u failed!\n");
 			}
+
+			cudaStatus = cudaMemcpy(F_s, d_F_s, 2 * Ns * sizeof(double), cudaMemcpyDeviceToHost);
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMemcpy of rho failed!\n");
+			}
 		}
 
 		//----------------------------DATA OUTPUT------------------------------
+
+		for (j = 0; j < c_num*LENGTH; j++)
+		{
+			W += abs(F_s[2 * j + 0]) * u_s[2 * j + 0];
+		}
 
 
 		double t_scale = 1000.*dt*t_0;					//milliseconds
@@ -944,7 +952,7 @@ int main(int argc, char * argv[])
 			
 			fsB.open(flux.c_str(), ofstream::app);
 
-			fsB << it*1000.*dt*t_0 << "\t" << Q*1000000. * dx*l_0*1000000. * dx*l_0 << "\t" << E*1000000. * dx*l_0*1000000. * dx*l_0 << endl;
+			fsB << it/**1000.*dt*t_0*/ << "\t" << Q/**1000000. * dx*l_0*1000000. * dx*l_0*/ << "\t" << W/**1000000. * dx*l_0*1000000. * dx*l_0*/ << endl;
 
 			fsB.close();
 		}
