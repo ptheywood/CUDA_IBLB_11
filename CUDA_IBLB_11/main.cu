@@ -329,6 +329,7 @@ int main(int argc, char * argv[])
 	cudaError_t cudaStatus;
 
 	double Q = 0.;
+	double E = 0.;
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
 	else cudaStatus = cudaSetDevice(0);
@@ -783,6 +784,8 @@ int main(int argc, char * argv[])
 					u_s[2 * k + 1] = b_points[5 * j + 3];
 				}
 
+				E += u_s[2 * k + 0];
+
 				epsilon[k] = 1;
 			}
 		
@@ -941,7 +944,7 @@ int main(int argc, char * argv[])
 			
 			fsB.open(flux.c_str(), ofstream::app);
 
-			fsB << it*1000.*dt*t_0 << "\t" << Q*1000000. * dx*l_0*1000000. * dx*l_0 << endl;
+			fsB << it*1000.*dt*t_0 << "\t" << Q*1000000. * dx*l_0*1000000. * dx*l_0 << "\t" << E*1000000. * dx*l_0*1000000. * dx*l_0 << endl;
 
 			fsB.close();
 		}
