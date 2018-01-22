@@ -253,6 +253,10 @@ int main(int argc, char * argv[])
 	double dt = 1. / (T);
 	double  SPEED = 0.8*1000/T;
 
+	double t_scale = 1000.*dt*t_0;					//milliseconds
+	double x_scale = 1000000. * dx*l_0;				//microns
+	double s_scale = 1000.*x_scale / t_scale;		//millimetres per second
+
 	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
 	const double TAU2 = 1. / (12.*(TAU - (1. / 2.))) + (1. / 2.);
 
@@ -904,13 +908,12 @@ int main(int argc, char * argv[])
 
 		for (j = 0; j < c_num*LENGTH; j++)
 		{
-			W += abs(F_s[2 * j + 0]) * u_s[2 * j + 0];
+			W += abs(F_s[2 * j + 0]) * u_s[2 * j + 0]/c_num/LENGTH;
+			//W += u_s[2 * j + 0]* u_s[2 * j + 0]*(u_s[2 * j + 0]/abs(u_s[2 * j + 0]));
 		}
 
 
-		double t_scale = 1000.*dt*t_0;					//milliseconds
-		double x_scale = 1000000. * dx*l_0;				//microns
-		double s_scale = 1000.*x_scale / t_scale;		//millimetres per second
+		
 
 
 		if (it % INTERVAL == 0)
@@ -952,7 +955,7 @@ int main(int argc, char * argv[])
 			
 			fsB.open(flux.c_str(), ofstream::app);
 
-			fsB << it/**1000.*dt*t_0*/ << "\t" << Q/**1000000. * dx*l_0*1000000. * dx*l_0*/ << "\t" << W/**1000000. * dx*l_0*1000000. * dx*l_0*/ << endl;
+			fsB << it*t_scale << "\t" << Q * x_scale << "\t" << W * 1000.*dx*l_0*dx*l_0/dt/t_0/*dt/t_0*/ << endl;
 
 			fsB.close();
 		}
@@ -993,7 +996,7 @@ int main(int argc, char * argv[])
 
 	fsB.open(flux.c_str(), ofstream::app);
 
-	fsB << it*1000.*dt*t_0 << "\t" << Q*1000000. * dx*l_0*1000000. * dx*l_0 << endl;
+	fsB << it*t_scale << "\t" << Q * x_scale << "\t" << W*1000.*dx*l_0*dx*l_0 / dt / t_0 / dt / t_0 << endl;
 
 	fsB.close();
 	

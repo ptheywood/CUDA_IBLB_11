@@ -127,7 +127,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 		if (x == XDIM - 5)
 		{
 
-				Q[0] += u[2 * j + 0];
+				Q[0] += u[2 * j + 0]/200.;
 
 		}
 	}
