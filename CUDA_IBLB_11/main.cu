@@ -538,7 +538,7 @@ int main(int argc, char * argv[])
 	string output_data = "Data/Test/";
 
 	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
-	else output_data = "C:/Users/phq16ja/Documents/Data/";
+	//else output_data = "C:/Users/phq16ja/Documents/Data/";
 		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
 	string raw_data = output_data + "Raw/";
@@ -794,7 +794,7 @@ int main(int argc, char * argv[])
 		
 		for (m = 0; m < c_num; m++)
 		{
-			boundary_check(n*c_num + m, c_space, c_num, LENGTH, s, epsilon);
+			boundary_check(m, c_space, c_num, LENGTH, s, epsilon);
 		}
 		
 		//---------------------------CILIUM COPY---------------------------------------- 
@@ -969,21 +969,6 @@ int main(int argc, char * argv[])
 			time_t p_end = rawtime + p_runtime;
 
 			timeinfo = localtime(&p_end);
-
-			//int hours(0), mins(0);
-			//time_t secs(0.);
-
-			//if (p_runtime >= 3600) hours = nearbyint(p_runtime / 3600 - 0.5);
-			//if (p_runtime >= 60) mins = nearbyint((p_runtime - hours * 3600) / 60 - 0.5);
-			//secs = p_runtime - hours * 3600 - mins * 60;
-
-			//cout << "\nProjected runtime: ";
-			//if (hours < 10) cout << 0;
-			//cout << hours << ":";
-			//if (mins < 10) cout << 0;
-			//cout << mins << ":";
-			//if (secs < 10) cout << 0;
-			//cout << fixed << setprecision(2) << secs;
 
 			cout << "\nCompletion time: " << asctime(timeinfo) << endl;
 

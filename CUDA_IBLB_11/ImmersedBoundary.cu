@@ -84,6 +84,9 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 	}
 }
 
+// rho[SIZE]: fluid density	u[2*size]: fluid velocity	f[9*size]: density function		Ns: No. of cilia boundary points	u_s[2*Ns]: cilia velocity	F_s[2*Ns]: cilia force	
+// force[2*size]: fluid force	s[2*Ns]: cilia position	XDIM: x dimension	Q: Net flow		epsilon[Ns]: boundary point switching
+
 __global__ void spread(const double * rho, double * u, const double * f, const int Ns, const double * u_s, const double * F_s, double * force, const double * s, const int XDIM, double * Q, const int * epsilon)
 {
 	int i(0), j(0), k(0), x(0), y(0);
