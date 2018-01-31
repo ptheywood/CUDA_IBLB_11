@@ -311,8 +311,8 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	int blocksize3 = 1000;
-	int gridsize3 = 10 * c_num;
+	int blocksize3 = 500;
+	int gridsize3 = 20 * c_num;
 
 	cudaError_t cudaStatus;
 
