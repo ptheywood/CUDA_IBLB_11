@@ -51,23 +51,33 @@ __constant__ double B_mn[7 * 2 * 3] =
 	0.0,  0.210, -0.367,  0.009,  0.120, -0.024,  0.102
 };
 
-__global__ void define_filament(const int m, const int T, const int it, const double offset, double * s, double * lasts)
+__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, double * s, double * lasts, double * b_points)
 {
-	int n(0);
+	int n(0), j(0);
 
 	double arcl(0.);
+	int phase(0.);
+
+	double b_length(0.);
 
 	double a_n[2 * 7];
 	double b_n[2 * 7];
 
 	int threadnum = blockDim.x*blockIdx.x + threadIdx.x;
 
-	int k = threadnum;
+	int k = threadnum % 10000;
 
-	
+	int m = (threadnum - k) / 10000;
 
 	{
 		arcl = 1.*k / 10000;
+
+		if (it + m*p_step == T) phase = T;
+		else phase = (it + m*p_step) % T;
+
+		double offset = 1.*(m - (c_num - 1) / 2.)*c_space;
+
+
 
 		for (n = 0; n < 7; n++)
 		{
@@ -103,8 +113,8 @@ __global__ void define_filament(const int m, const int T, const int it, const do
 
 		for (n = 1; n < 7; n++)
 		{
-			s[5 * (k + m * 10000) + 0] += 1. * 115 * (a_n[2 * n + 0] * cos(n*2.*PI*it / T) + b_n[2 * n + 0] * sin(n*2.*PI*it / T));
-			s[5 * (k + m * 10000) + 1] += 1. * 115 * (a_n[2 * n + 1] * cos(n*2.*PI*it / T) + b_n[2 * n + 1] * sin(n*2.*PI*it / T));
+			s[5 * (k + m * 10000) + 0] += 1. * 115 * (a_n[2 * n + 0] * cos(n*2.*PI*phase / T) + b_n[2 * n + 0] * sin(n*2.*PI*phase / T));
+			s[5 * (k + m * 10000) + 1] += 1. * 115 * (a_n[2 * n + 1] * cos(n*2.*PI*phase / T) + b_n[2 * n + 1] * sin(n*2.*PI*phase / T));
 		}
 
 		if (it > 0)
@@ -117,51 +127,21 @@ __global__ void define_filament(const int m, const int T, const int it, const do
 		lasts[2 * (k + m * 10000) + 0] = s[5 * (k + m * 10000) + 0];
 		lasts[2 * (k + m * 10000) + 1] = s[5 * (k + m * 10000) + 1];
 	}
-}
 
-__global__ void define_boundary(const int m, const int c_num, const double * boundary, double * b_points)
-{
-	int j(0), k(0);
-	double b_length(0.);
-	double step(1.);
-
-	int threadnum = blockDim.x*blockIdx.x + threadIdx.x;
-
-	k = threadnum;
-
-	if (k == 0)
+	for (j = m*100 ; j < (m + 1)*100; j++)
 	{
-		b_points[5 * (k + m * 100) + 0] = boundary[5 * (1 + m * 10000) + 0];
-		b_points[5 * (k + m * 100) + 1] = boundary[5 * (1 + m * 10000) + 1];
+		b_length = j%100;
 
-		b_points[5 * (k + m * 100) + 2] = boundary[5 * (1 + m * 10000) + 3];
-		b_points[5 * (k + m * 100) + 3] = boundary[5 * (1 + m * 10000) + 4];
-	}
-	else
-	{
-		b_length = k*step;
-
-		for (j = (1 + m * 10000); j < c_num*10000; j++)
+		if (abs(s[5 * (k + m * 10000) + 2] - b_length) < 0.01)
 		{
-			if (abs(boundary[5 * j + 2] - b_length) < 0.01)
-			{
-				b_points[5 * (k + m * 100) + 0] = boundary[5 * j + 0];
-				b_points[5 * (k + m * 100) + 1] = boundary[5 * j + 1];
+			b_points[5 * j + 0] = s[5 * (k + m * 10000) + 0];
+			b_points[5 * j + 1] = s[5 * (k + m * 10000) + 1];
 
-				b_points[5 * (k + m * 100) + 2] = boundary[5 * j + 3];
-				b_points[5 * (k + m * 100) + 3] = boundary[5 * j + 4];
+			b_points[5 * j + 2] = s[5 * (k + m * 10000) + 3];
+			b_points[5 * j + 3] = s[5 * (k + m * 10000) + 4];
 
-				j = c_num*10000;
-			}
-			else
-			{
-				b_points[5 * (k + m * 100) + 0] = 0.;
-				b_points[5 * (k + m * 100) + 1] = 250.;
-
-				b_points[5 * (k + m * 100) + 2] = 0.1;
-				b_points[5 * (k + m * 100) + 3] = 0.1;
-			}
 		}
+		
 	}
 }
 
@@ -270,7 +250,7 @@ int main(int argc, char * argv[])
 
 	cout << "Initialising...\n";
 
-	unsigned int i(0), j(0), k(0), n(0), m(0);
+	unsigned int i(0), j(0), k(0), m(0);
 
 	unsigned int it(0);
 	int phase(0);
@@ -330,6 +310,9 @@ int main(int argc, char * argv[])
 			}
 		}
 	}
+
+	int blocksize3 = 1000;
+	int gridsize3 = 10 * c_num;
 
 	cudaError_t cudaStatus;
 
@@ -539,7 +522,7 @@ int main(int argc, char * argv[])
 	string output_data = "Data/Test/";
 
 	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
-	else output_data = "C:/Users/phq16ja/Documents/Data/";
+	//else output_data = "C:/Users/phq16ja/Documents/Data/";
 		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
 	string raw_data = output_data + "Raw/";
@@ -554,7 +537,6 @@ int main(int argc, char * argv[])
 	img_data += to_string(c_num);
 	img_data += "/";
 	
-	img_data += to_string(c_num);
 
 	string outfile = cilia_data;
 
@@ -722,13 +704,20 @@ int main(int argc, char * argv[])
 	fsC << "Spatial step: " << dx*l_0 << "m" << endl;
 	fsC << "Time step: " << dt*t_0 << "s" << endl;
 	fsC << "Mach number: " << Ma << endl;
-	fsC << "Spatial discretisation error: " << l_error << endl;
-	fsC << "Time discretisation error: " << t_error << endl;
-	fsC << "Compressibility error: " << c_error << endl;
-
+	//fsC << "Spatial discretisation error: " << l_error << endl;
+	//fsC << "Time discretisation error: " << t_error << endl;
+	//fsC << "Compressibility error: " << c_error << endl;
+	fsC << "Phase Step: " << p_step << "/" << c_num << endl;
 
 	fsC << "\nThreads per block: " << blocksize << endl;
 	fsC << "Blocks: " << gridsize << endl;
+
+	if (BigData) fsC << "\nBig Data is ON" << endl;
+	else fsC << "\nBig Data is OFF" << endl;
+
+	if (ShARC) fsC << "Running on ShARC" << endl;
+	else fsC << "Running on local GPU" << endl;
+
 
 
 	//--------------------------ITERATION LOOP-----------------------------
@@ -742,36 +731,20 @@ int main(int argc, char * argv[])
 		//--------------------------CILIA BEAT DEFINITION-------------------------
 
 		
-			for (m = 0; m < c_num; m++)
-			{
-				if (it + m*p_step == T) phase = T;
-				else phase = (it + m*p_step) % T;
+			
+			define_filament << <gridsize3, blocksize3 >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points);
 
-				offset = 1.*(m - (c_num - 1) / 2.)*c_space;
+			cudaStatus = cudaGetLastError();
+			if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_filament failed: %s\n", cudaGetErrorString(cudaStatus)); }
 
-
-				define_filament << <20, 500 >> > (m, T, phase, offset, d_boundary, d_lasts);
-
-				cudaStatus = cudaGetLastError();
-				if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_filament failed: %s\n", cudaGetErrorString(cudaStatus)); }
-
-				define_boundary << <1, 100 >> > (m, c_num, d_boundary, d_b_points);
-
-				cudaStatus = cudaGetLastError();
-				if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_boundary failed: %s\n", cudaGetErrorString(cudaStatus)); }
-
-
-				cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(double), cudaMemcpyDeviceToHost);
-				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
-
-			}
-
+			cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(double), cudaMemcpyDeviceToHost);
+			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
 		
 			for (j = 0; j < c_num*LENGTH; j++)
 			{
 				k = j;
 
-				s[2 * k + 0] = n*LENGTH / 2.*c_num + (LENGTH / 2.*c_num) / 2. + b_points[5 * j + 0];
+				s[2 * k + 0] = (LENGTH / 2.*c_num) / 2. + b_points[5 * j + 0];
 
 				if (s[2 * k + 0] < 0) s[2 * k + 0] += XDIM;
 				else if (s[2 * k + 0] > XDIM) s[2 * k + 0] -= XDIM;
