@@ -539,7 +539,7 @@ int main(int argc, char * argv[])
 	string output_data = "Data/Test/";
 
 	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
-	//else output_data = "C:/Users/phq16ja/Documents/Data/";
+	else output_data = "C:/Users/phq16ja/Documents/Data/";
 		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
 	string raw_data = output_data + "Raw/";
@@ -946,7 +946,7 @@ int main(int argc, char * argv[])
 
 				for (k = 0; k < Ns; k++)
 				{
-					fsA << s[2 * k + 0] << "\t" << s[2 * k + 1] << "\t" << u_s[2 * k + 0] << "\t" << u_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
+					fsA << s[2 * k + 0]*x_scale << "\t" << s[2 * k + 1]*x_scale << "\t" << u_s[2 * k + 0]*s_scale << "\t" << u_s[2 * k + 1]*s_scale << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
 					if (k % 100 == 99 || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
 				}
 
