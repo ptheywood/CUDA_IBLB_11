@@ -201,6 +201,25 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 
 }
 
+double  free_space(const int XDIM, const int c_num, const int L, const double * b_points, const int level)
+{
+	int cilium_p = 0;
+	int cilium_m = 0;
+	double space(0.);
+
+	cilium_p = (0 + level) * L;
+	cilium_m = (c_num - level) * L;
+
+	for (int i = 0; i < L; i++)
+	{
+		space += 1.*(b_points[5*(cilium_p + i) + 0] - (b_points[5*(cilium_m + i) + 0] - XDIM))*(i*1./ L) / L / (b_points[5 * (cilium_p) + 0] - (b_points[5 * (cilium_m) + 0] - XDIM));
+	}
+	
+
+	return space;
+
+}
+
 
 int main(int argc, char * argv[])
 {
@@ -253,11 +272,11 @@ int main(int argc, char * argv[])
 	unsigned int i(0), j(0), k(0), m(0);
 
 	unsigned int it(0);
-	int phase(0);
+	//int phase(0);
 	int p_step = T * c_fraction / c_num;
 
 	
-	double offset = 0.;
+	//double offset = 0.;
 
 	double * lasts;
 	lasts = new double[2 * c_num * 10000];
@@ -318,6 +337,9 @@ int main(int argc, char * argv[])
 
 	double Q = 0.;
 	double W = 0.;
+	double f_space_1 = 0.;
+	double f_space_2 = 0.;
+	bool done = 0;
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
 	else cudaStatus = cudaSetDevice(0);
@@ -329,9 +351,9 @@ int main(int argc, char * argv[])
 	//------------------------------------------ERROR------------------------------------------------
 
 
-	double l_error = (l_0*dx)*(l_0*dx);
-	double t_error = (t_0*dt)*(t_0*dt);
-	double c_error = (t_0*dt)*(t_0*dt) / ((l_0*dx)*(l_0*dx));
+	//double l_error = (l_0*dx)*(l_0*dx);
+	//double t_error = (t_0*dt)*(t_0*dt);
+	//double c_error = (t_0*dt)*(t_0*dt) / ((l_0*dx)*(l_0*dx));
 	double Ma = 1.*SPEED / C_S;
 	time_t p_runtime;
 
@@ -544,6 +566,8 @@ int main(int argc, char * argv[])
 
 	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) +"-flux.dat";
 
+	string fspace = output_data + "/Flux/free_space.dat";
+
 	string parameters = raw_data + "/SimLog.txt";
 
 	string input = "Data/cilium/";
@@ -555,6 +579,8 @@ int main(int argc, char * argv[])
 	ofstream fsB(flux.c_str());
 
 	ofstream fsC(parameters.c_str());
+
+	ofstream fsD;
 
 	fsB.open(flux.c_str(), ofstream::trunc);
 
@@ -739,7 +765,21 @@ int main(int argc, char * argv[])
 
 			cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(double), cudaMemcpyDeviceToHost);
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
-		
+
+			f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
+			f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
+
+			if (1.*it / ITERATIONS > 0.166 && !done)
+			{
+				fsD.open(fspace.c_str(), ofstream::app);
+
+				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << endl;
+
+				fsD.close();
+
+				done = 1;
+			}
+
 			for (j = 0; j < c_num*LENGTH; j++)
 			{
 				k = j;
@@ -770,6 +810,9 @@ int main(int argc, char * argv[])
 		{
 			boundary_check(m, c_space, c_num, LENGTH, s, epsilon);
 		}
+
+		
+
 		
 		//---------------------------CILIUM COPY---------------------------------------- 
 
@@ -929,7 +972,7 @@ int main(int argc, char * argv[])
 			
 			fsB.open(flux.c_str(), ofstream::app);
 
-			fsB << it*t_scale << "\t" << Q * x_scale << "\t" << W * 1000.*dx*l_0*dx*l_0/dt/t_0/*dt/t_0*/ << endl;
+			fsB << it*t_scale << "\t" << Q * x_scale << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << endl;
 
 			fsB.close();
 		}
@@ -955,7 +998,7 @@ int main(int argc, char * argv[])
 
 	fsB.open(flux.c_str(), ofstream::app);
 
-	fsB << it*t_scale << "\t" << Q * x_scale << "\t" << W*1000.*dx*l_0*dx*l_0 / dt / t_0 / dt / t_0 << endl;
+	fsB << it*t_scale << "\t" << Q * x_scale << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << endl;
 
 	fsB.close();
 	
