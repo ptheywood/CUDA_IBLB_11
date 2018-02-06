@@ -236,6 +236,13 @@ int main(int argc, char * argv[])
 	unsigned int LENGTH = 100;
 	bool ShARC = 0;
 	bool BigData = 0;
+
+	if (argc < 9)
+	{
+		cout << "Too few arguments! " << argc - 1 << " entered of 8 required. " << endl;
+
+		return 1;
+	}
 	
 
 	stringstream arg;
@@ -245,8 +252,18 @@ int main(int argc, char * argv[])
 	arg >> c_fraction >> c_num >> Re >> T >> ITERATIONS >> INTERVAL >> ShARC >> BigData;
 
 
-	unsigned int c_space = LENGTH / 2;
+
+
+	unsigned int c_space = 20;
 	XDIM = c_num*c_space;
+
+	if (XDIM <= 2 * LENGTH)
+	{
+		cout << "not enough cilia in simulation! cilia spacing of " << c_space << "requires atleast " << 2 * LENGTH / c_space << " cilia" << endl;
+
+		return 1;
+	}
+
 	const double centre[2] = { XDIM / 2., 0. };
 
 	double dx = 1. / LENGTH;
@@ -544,7 +561,7 @@ int main(int argc, char * argv[])
 	string output_data = "Data/Test/";
 
 	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
-	//else output_data = "C:/Users/phq16ja/Documents/Data/";
+	else output_data = "C:/Users/phq16ja/Documents/Data/";
 		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
 	string raw_data = output_data + "Raw/";
@@ -564,7 +581,7 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------BOUNDARY INITIALISATION------------------------------------------------
 
-	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) +"-flux.dat";
+	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "-flux.dat";
 
 	string fspace = output_data + "/Flux/free_space.dat";
 
@@ -733,10 +750,10 @@ int main(int argc, char * argv[])
 	//fsC << "Spatial discretisation error: " << l_error << endl;
 	//fsC << "Time discretisation error: " << t_error << endl;
 	//fsC << "Compressibility error: " << c_error << endl;
-	fsC << "Phase Step: " << p_step << "/" << c_num << endl;
+	fsC << "Phase Step: " << c_fraction << "/" << c_num << endl;
 
-	fsC << "\nThreads per block: " << blocksize << endl;
-	fsC << "Blocks: " << gridsize << endl;
+	//fsC << "\nThreads per block: " << blocksize << endl;
+	//fsC << "Blocks: " << gridsize << endl;
 
 	if (BigData) fsC << "\nBig Data is ON" << endl;
 	else fsC << "\nBig Data is OFF" << endl;
@@ -784,7 +801,7 @@ int main(int argc, char * argv[])
 			{
 				k = j;
 
-				s[2 * k + 0] = (LENGTH / 2.*c_num) / 2. + b_points[5 * j + 0];
+				s[2 * k + 0] = (c_space*c_num) / 2. + b_points[5 * j + 0];
 
 				if (s[2 * k + 0] < 0) s[2 * k + 0] += XDIM;
 				else if (s[2 * k + 0] > XDIM) s[2 * k + 0] -= XDIM;
@@ -1015,14 +1032,14 @@ int main(int argc, char * argv[])
 
 	fsC.open(parameters.c_str(), ofstream::app);
 
-	fsC << "\nTotal runtime: ";
+	fsC << "Total runtime: ";
 	if (hours < 10) fsC << 0;
 	fsC << hours << ":";
 	if (mins < 10) fsC << 0;
 	fsC << mins << ":";
 	if (secs < 10) fsC << 0;
 	fsC << secs << endl;
-	fsC << "Net Q = " << Q << " Avg Q = " << Q / 1.*(it / T) << endl;
+	
 
 	fsC.close();
 
