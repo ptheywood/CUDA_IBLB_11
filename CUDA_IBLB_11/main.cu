@@ -234,12 +234,13 @@ int main(int argc, char * argv[])
 	unsigned int ITERATIONS = T;
 	unsigned int INTERVAL = 100;
 	unsigned int LENGTH = 100;
+	unsigned int c_space = 50;
 	bool ShARC = 0;
 	bool BigData = 0;
 
-	if (argc < 9)
+	if (argc < 10)
 	{
-		cout << "Too few arguments! " << argc - 1 << " entered of 8 required. " << endl;
+		cout << "Too few arguments! " << argc - 1 << " entered of 9 required. " << endl;
 
 		return 1;
 	}
@@ -247,14 +248,14 @@ int main(int argc, char * argv[])
 
 	stringstream arg;
 
-	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8];
+	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9];
 
-	arg >> c_fraction >> c_num >> Re >> T >> ITERATIONS >> INTERVAL >> ShARC >> BigData;
-
-
+	arg >> c_fraction >> c_num >> c_space >> Re >> T >> ITERATIONS >> INTERVAL >> ShARC >> BigData ;
 
 
-	unsigned int c_space = 20;
+
+
+	
 	XDIM = c_num*c_space;
 
 	if (XDIM <= 2 * LENGTH)
