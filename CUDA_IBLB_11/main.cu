@@ -584,7 +584,7 @@ int main(int argc, char * argv[])
 
 	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "-flux.dat";
 
-	string fspace = output_data + "/Flux/free_space.dat";
+	string fspace = output_data + "/Flux/" + to_string(c_space) + "-free_space.dat";
 
 	string parameters = raw_data + "/SimLog.txt";
 
