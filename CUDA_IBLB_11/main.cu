@@ -357,6 +357,7 @@ int main(int argc, char * argv[])
 	double W = 0.;
 	double f_space_1 = 0.;
 	double f_space_2 = 0.;
+	double f_space_3 = 0.;
 	bool done = 0;
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
@@ -786,12 +787,13 @@ int main(int argc, char * argv[])
 
 			f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
 			f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
+			f_space_3 = free_space(XDIM, c_num, LENGTH, b_points, 3);
 
 			if (1.*it / ITERATIONS > 0.166 && !done)
 			{
 				fsD.open(fspace.c_str(), ofstream::app);
 
-				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << endl;
+				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << endl;
 
 				fsD.close();
 
