@@ -89,52 +89,39 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 __global__ void spread(const double * rho, double * u, const double * f, const int Ns, const double * u_s, const double * F_s, double * force, const double * s, const int XDIM, double * Q, const int * epsilon)
 {
-	int i(0), j(0), k(0), x(0), y(0);
+	int j(0), k(0), x(0), y(0);
 
 	double xs(0.), ys(0.);
 
-	double momentum[2] = { 0,0 };
-
 	j = blockIdx.x*blockDim.x + threadIdx.x;
 
+	force[2 * j + 0] = 0.;
+	force[2 * j + 1] = 0.;
 
+	x = j%XDIM;
+	y = (j - j%XDIM) / XDIM;
+
+	for (k = 0; k < Ns; k++)
 	{
-		force[2 * j + 0] = 0.;
-		force[2 * j + 1] = 0.;
+		xs = s[k * 2 + 0];
+		ys = s[k * 2 + 1];
 
-
-		x = j%XDIM;
-		y = (j - j%XDIM) / XDIM;
-
-		for (k = 0; k < Ns; k++)
-		{
-			xs = s[k * 2 + 0];
-			ys = s[k * 2 + 1];
-
-			force[2 * j + 0] += F_s[2 * k + 0] * delta(xs, ys, x, y) * 1.*epsilon[k];
-			force[2 * j + 1] += F_s[2 * k + 1] * delta(xs, ys, x, y) * 1.*epsilon[k];
-		}
-
-		momentum[0] = 0.;
-		momentum[1] = 0.;
-
-		for (i = 0; i < 9; i++)
-		{
-			momentum[0] += c_l[i * 2 + 0] * f[9 * j + i];
-			momentum[1] += c_l[i * 2 + 1] * f[9 * j + i];
-		}
-
-		u[2 * j + 0] = (momentum[0] + 0.5*force[2 * j + 0]) / rho[j];
-		u[2 * j + 1] = (momentum[1] + 0.5*force[2 * j + 1]) / rho[j];
-
-		if (x == XDIM - 5)
-		{
-
-				Q[0] += u[2 * j + 0]/200.;
-
-		}
+		force[2 * j + 0] += F_s[2 * k + 0] * delta(xs, ys, x, y) * 1.*epsilon[k];
+		force[2 * j + 1] += F_s[2 * k + 1] * delta(xs, ys, x, y) * 1.*epsilon[k];
 	}
 
+	u[2 * j + 0] = (c_l[0 * 2 + 0] * f[9 * j + 0] + c_l[1 * 2 + 0] * f[9 * j + 1] + c_l[2 * 2 + 0] * f[9 * j + 2] + 
+			c_l[3 * 2 + 0] * f[9 * j + 3] + c_l[4 * 2 + 0] * f[9 * j + 4] + c_l[5 * 2 + 0] * f[9 * j + 5] + 
+			c_l[6 * 2 + 0] * f[9 * j + 6] + c_l[7 * 2 + 0] * f[9 * j + 7] + c_l[8 * 2 + 0] * f[9 * j + 8] + 0.5*force[2 * j + 0]) / rho[j];
+
+	u[2 * j + 1] = (c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[2 * 2 + 1] * f[9 * j + 2] +
+			c_l[3 * 2 + 1] * f[9 * j + 3] + c_l[4 * 2 + 1] * f[9 * j + 4] + c_l[5 * 2 + 1] * f[9 * j + 5] +
+			c_l[6 * 2 + 1] * f[9 * j + 6] + c_l[7 * 2 + 1] * f[9 * j + 7] + c_l[8 * 2 + 1] * f[9 * j + 8] + 0.5*force[2 * j + 1]) / rho[j];
+
+	if (x == XDIM - 5)
+	{
+			Q[0] += u[2 * j + 0]/200.;
+	}
 }
 
 
