@@ -10,7 +10,7 @@
 //__device__ const double RHO_0 = 1.;
 //__device__ const double C_S = 0.57735;
 
-__device__ const double c_l[9 * 2] =		//VELOCITY COMPONENTS
+__constant__ double c_l[9 * 2] =		//VELOCITY COMPONENTS
 {
 	0.,0. ,
 	1.,0. , 0.,1. , -1.,0. , 0.,-1. ,
@@ -52,7 +52,7 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 	int i(0), j(0), k(0), x0(0), y0(0), x(0), y(0);
 
-	double xs(0.), ys(0.);
+	double xs(0.), ys(0.), del(0.);
 
 
 	k = blockIdx.x*blockDim.x + threadIdx.x;
@@ -75,10 +75,10 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 			j = y*XDIM + x;
 
-			//std::cout << delta << std::endl;
+			del = delta(xs, ys, x, y);
 
-			F_s[2 * k + 0] += 2.*(1. * 1. * delta(xs, ys, x, y))*rho[j] * (u_s[2 * k + 0] - u[2 * j + 0]);
-			F_s[2 * k + 1] += 2.*(1. * 1. * delta(xs, ys, x, y))*rho[j] * (u_s[2 * k + 1] - u[2 * j + 1]);
+			F_s[2 * k + 0] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 0] - u[2 * j + 0]);
+			F_s[2 * k + 1] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 1] - u[2 * j + 1]);
 		}
 
 	}
@@ -91,7 +91,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 {
 	int j(0), k(0), x(0), y(0);
 
-	double xs(0.), ys(0.);
+	double xs(0.), ys(0.), del(0.);
 
 	j = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -106,8 +106,10 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 		xs = s[k * 2 + 0];
 		ys = s[k * 2 + 1];
 
-		force[2 * j + 0] += F_s[2 * k + 0] * delta(xs, ys, x, y) * 1.*epsilon[k];
-		force[2 * j + 1] += F_s[2 * k + 1] * delta(xs, ys, x, y) * 1.*epsilon[k];
+		del = delta(xs, ys, x, y);
+
+		force[2 * j + 0] += F_s[2 * k + 0] * del * 1.*epsilon[k];
+		force[2 * j + 1] += F_s[2 * k + 1] * del * 1.*epsilon[k];
 	}
 
 	u[2 * j + 0] = (c_l[0 * 2 + 0] * f[9 * j + 0] + c_l[1 * 2 + 0] * f[9 * j + 1] + c_l[2 * 2 + 0] * f[9 * j + 2] + 

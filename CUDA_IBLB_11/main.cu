@@ -358,6 +358,8 @@ int main(int argc, char * argv[])
 	double f_space_1 = 0.;
 	double f_space_2 = 0.;
 	double f_space_3 = 0.;
+	double f_space_4 = 0.;
+	double f_space_5 = 0.;
 	bool done = 0;
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
@@ -785,15 +787,18 @@ int main(int argc, char * argv[])
 			cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(double), cudaMemcpyDeviceToHost);
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
 
-			f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
-			f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
-			f_space_3 = free_space(XDIM, c_num, LENGTH, b_points, 3);
-
+			
 			if (1.*it / ITERATIONS > 0.166 && !done)
 			{
+				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
+				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
+				f_space_3 = free_space(XDIM, c_num, LENGTH, b_points, 3);
+				f_space_4 = free_space(XDIM, c_num, LENGTH, b_points, 4);
+				f_space_5 = free_space(XDIM, c_num, LENGTH, b_points, 5);
+
 				fsD.open(fspace.c_str(), ofstream::app);
 
-				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << endl;
+				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << "\t" << f_space_4 << "\t" << f_space_5 << endl;
 
 				fsD.close();
 
@@ -992,7 +997,7 @@ int main(int argc, char * argv[])
 			
 			fsB.open(flux.c_str(), ofstream::app);
 
-			fsB << it*t_scale << "\t" << Q * x_scale << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << endl;
+			fsB << it*t_scale << "\t" << Q * x_scale << endl;
 
 			fsB.close();
 		}
@@ -1018,7 +1023,7 @@ int main(int argc, char * argv[])
 
 	fsB.open(flux.c_str(), ofstream::app);
 
-	fsB << it*t_scale << "\t" << Q * x_scale << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << endl;
+	fsB << it*t_scale << "\t" << Q * x_scale << endl;
 
 	fsB.close();
 	
