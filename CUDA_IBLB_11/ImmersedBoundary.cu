@@ -93,6 +93,8 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	double xs(0.), ys(0.), del(0.);
 
+	int size = 200 * XDIM;
+
 	j = blockIdx.x*blockDim.x + threadIdx.x;
 
 	force[2 * j + 0] = 0.;
@@ -108,17 +110,17 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 		del = delta(xs, ys, x, y);
 
-		force[2 * j + 0] += F_s[2 * k + 0] * del * 1.*epsilon[k];
-		force[2 * j + 1] += F_s[2 * k + 1] * del * 1.*epsilon[k];
+		force[0 * size + j] += F_s[2 * k + 0] * del * 1.*epsilon[k];
+		force[1 * size + j] += F_s[2 * k + 1] * del * 1.*epsilon[k];
 	}
 
 	u[2 * j + 0] = (c_l[0 * 2 + 0] * f[9 * j + 0] + c_l[1 * 2 + 0] * f[9 * j + 1] + c_l[2 * 2 + 0] * f[9 * j + 2] + 
 			c_l[3 * 2 + 0] * f[9 * j + 3] + c_l[4 * 2 + 0] * f[9 * j + 4] + c_l[5 * 2 + 0] * f[9 * j + 5] + 
-			c_l[6 * 2 + 0] * f[9 * j + 6] + c_l[7 * 2 + 0] * f[9 * j + 7] + c_l[8 * 2 + 0] * f[9 * j + 8] + 0.5*force[2 * j + 0]) / rho[j];
+			c_l[6 * 2 + 0] * f[9 * j + 6] + c_l[7 * 2 + 0] * f[9 * j + 7] + c_l[8 * 2 + 0] * f[9 * j + 8] + 0.5*force[0 * size + j]) / rho[j];
 
 	u[2 * j + 1] = (c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[2 * 2 + 1] * f[9 * j + 2] +
 			c_l[3 * 2 + 1] * f[9 * j + 3] + c_l[4 * 2 + 1] * f[9 * j + 4] + c_l[5 * 2 + 1] * f[9 * j + 5] +
-			c_l[6 * 2 + 1] * f[9 * j + 6] + c_l[7 * 2 + 1] * f[9 * j + 7] + c_l[8 * 2 + 1] * f[9 * j + 8] + 0.5*force[2 * j + 1]) / rho[j];
+			c_l[6 * 2 + 1] * f[9 * j + 6] + c_l[7 * 2 + 1] * f[9 * j + 7] + c_l[8 * 2 + 1] * f[9 * j + 8] + 0.5*force[1 * size + j]) / rho[j];
 
 	if (x == XDIM - 5)
 	{

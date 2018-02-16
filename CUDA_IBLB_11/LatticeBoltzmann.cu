@@ -35,6 +35,8 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 
 	double vec[2] = { 0,0 };
 
+	int size = XDIM*YDIM;
+
 	
 	{
 		j = threadnum;
@@ -51,7 +53,7 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 			vec[0] = (c_l[i * 2 + 0] - u[i * 2 + 0]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[i * 2 + 0] + c_l[i * 2 + 1] * u[i * 2 + 1]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 0];
 			vec[1] = (c_l[i * 2 + 1] - u[i * 2 + 1]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[i * 2 + 0] + c_l[i * 2 + 1] * u[i * 2 + 1]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 1];
 
-			F[9 * j + i] = (1. - 1. / (2. * TAU))*t[i] * (vec[0] * force[j * 2 + 0] + vec[1] * force[j * 2 + 1]);
+			F[9 * j + i] = (1. - 1. / (2. * TAU))*t[i] * (vec[0] * force[size * 0 + j] + vec[1] * force[size * 1 + j]);
 			
 		}
 	}
