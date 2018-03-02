@@ -328,7 +328,7 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 500;
+	int blocksize = 1000;
 
 	int gridsize = size / blocksize;
 
@@ -920,8 +920,8 @@ int main(int argc, char * argv[])
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "spread launch failed: %s\n", cudaGetErrorString(cudaStatus));
 				
-				//cout << it << endl;
-				//system("pause");
+				cout << it << endl;
+				system("pause");
 				return 1;
 			}
 
