@@ -100,20 +100,22 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	int size = 200 * XDIM;
 
-	const int tile = 1000;
+	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
-	int numtiles = (2 * Ns - (2 * Ns) % tile) / (tile);
+	const int tile = 1000;	//size of a tile, same as blockdim.x
+
+	int numtiles = (2 * Ns - (2 * Ns) % tile) / (tile);	//number of full tiles to populate the whole array of values
 	
-	int overflow = (2 * Ns) % tile;
+	int overflow = (2 * Ns) % tile;	//number of values outside of full tiles
 	
-	__shared__ double sh_s[tile];
-	__shared__ double sh_F_s[tile];
+	__shared__ double sh_s[tile];	//shared version of s array
+	__shared__ double sh_F_s[tile];	//shared version of F_s array
 
-	j = blockIdx.x*blockDim.x + threadIdx.x;
+	j = blockIdx.x*blockDim.x + threadIdx.x;	//unique thread ID
 
-	n = threadIdx.x;
+	n = threadIdx.x;		//thread ID within block
 
-	force[0 * size + j] = 0.;
+	force[0 * size + j] = 0.;		//initialise
 	force[1 * size + j] = 0.;
 
 	sh_s[n] = 0.;
@@ -122,54 +124,57 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 	x = j%XDIM;
 	y = (j - j%XDIM) / XDIM;
 
-	for (m = 0; m < numtiles; m++)
+	for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
 	{
 
-		sh_s[n] = 0.;
-		sh_F_s[n] = 0.;
-
-		sh_s[n] = s[m*tile + n];
+		sh_s[n] = s[m*tile + n];		//take values from next tile in the arrays to shared memory
 		sh_F_s[n] = F_s[m*tile + n];
 
 		__syncthreads();
 
 
-		for (k = 0; k < tile/2; k++)
+		for (k = 0; k < tile/2; k++)	//iterate for each value within a tile ("tile" values reporesent "tile/2" points with x and y coordinates)
 		{
-			xs = sh_s[2 * k + 0];
-			ys = sh_s[2 * k + 1];
+			xs = sh_s[2 * k + 0];		//x value
+			ys = sh_s[2 * k + 1];		//y value
 
 			del = delta(xs, ys, x, y);
 
-			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * epsilon[m*tile/2 + k];
-			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * epsilon[m*tile/2 + k];
+			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * epsilon[m*tile/2 + k];		//calculate force x
+			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * epsilon[m*tile/2 + k];		//calculate force y
+			
 		}
 
 		__syncthreads();
 	}
 
-	if(overflow !=0 && n<overflow)
+	if(overflow !=0 && n<overflow)		//if there are excess values after the arrays have been split into tiles, and only execute for that many threads
 	{
-		sh_s[n] = s[numtiles*tile + n];
-		sh_F_s[n] = F_s[numtiles*tile + n];
+
+		sh_s[n] = s[numtiles*tile + n];		//take values from excess into shared memory
+		sh_F_s[n] = F_s[numtiles*tile + n];	
 
 		__syncthreads();
 
 
-		for (k = 0; k < (overflow / 2); k++)
+		for (k = 0; k < overflow / 2; k++)	//iterate forall of the excess values
 		{
-			xs = sh_s[k * 2 + 0];
-			ys = sh_s[k * 2 + 1];
+			xs = sh_s[k * 2 + 0];		//x value
+			ys = sh_s[k * 2 + 1];		//y value
 
 			del = delta(xs, ys, x, y);
 
-			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1.*epsilon[m*tile/2 + k];
-			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1.*epsilon[m*tile/2 + k];
+			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1.*epsilon[numtiles*tile/2 + k];		//calculate force x
+			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1.*epsilon[numtiles*tile/2 + k];		//calculate force y
+			
 		}
 
-		__syncthreads();
 	}
 
+	__syncthreads();
+
+
+	//this is the original code, without using shared memory
 	/*for (k = 0; k < Ns; k++)
 	{
 		xs = s[k * 2 + 0];
@@ -180,6 +185,8 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 		force[0 * size + j] += F_s[2 * k + 0] * del * 1.*epsilon[k];
 		force[1 * size + j] += F_s[2 * k + 1] * del * 1.*epsilon[k];
 	}*/
+
+	/////////////////////////////////////////////////////////////////END////////////////////////////////////////////////////////////
 
 	u[2 * j + 0] = (c_l[0 * 2 + 0] * f[9 * j + 0] + c_l[1 * 2 + 0] * f[9 * j + 1] + c_l[2 * 2 + 0] * f[9 * j + 2] + 
 			c_l[3 * 2 + 0] * f[9 * j + 3] + c_l[4 * 2 + 0] * f[9 * j + 4] + c_l[5 * 2 + 0] * f[9 * j + 5] + 
