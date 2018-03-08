@@ -98,15 +98,17 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	double xs(0.), ys(0.), del(0.);
 
-	int size = 200 * XDIM;
+	int size = 256 * XDIM;
 
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
-	const int tile = 1000;	//size of a tile, same as blockdim.x
+	const int tile = 1024;	//size of a tile, same as blockdim.x
+
+	const int tpoints = tile / 2;
 
 	int numtiles = (2 * Ns - (2 * Ns) % tile) / (tile);	//number of full tiles to populate the whole array of values
 	
-	int overflow = (2 * Ns) % tile;	//number of values outside of full tiles
+	int excess = (2 * Ns) % tile;	//number of values outside of full tiles
 	
 	__shared__ double sh_s[tile];	//shared version of s array
 	__shared__ double sh_F_s[tile];	//shared version of F_s array
@@ -133,46 +135,64 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 		__syncthreads();
 
 
-		for (k = 0; k < tile/2; k++)	//iterate for each value within a tile ("tile" values reporesent "tile/2" points with x and y coordinates)
+		for (k = 0; k < tpoints; k++)	//iterate for each value within a tile ("tile" values reporesent "tile/2" points with x and y coordinates)
 		{
 			xs = sh_s[2 * k + 0];		//x value
 			ys = sh_s[2 * k + 1];		//y value
 
 			del = delta(xs, ys, x, y);
 
-			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * epsilon[m*tile/2 + k];		//calculate force x
-			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * epsilon[m*tile/2 + k];		//calculate force y
-			
+			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * epsilon[m*tpoints + k];		//calculate force x
+			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * epsilon[m*tpoints + k];		//calculate force y
+
+			//__syncthreads();
 		}
 
 		__syncthreads();
 	}
 
-	if(overflow !=0 && n<overflow)		//if there are excess values after the arrays have been split into tiles, and only execute for that many threads
+	
+
+	if (n < excess)		//if there are excess values after the arrays have been split into tiles, and only execute for that many threads
 	{
-
 		sh_s[n] = s[numtiles*tile + n];		//take values from excess into shared memory
-		sh_F_s[n] = F_s[numtiles*tile + n];	
+		sh_F_s[n] = F_s[numtiles*tile + n];
+	}
+	else
+	{
+		sh_s[n] = -100.;		//dummy values
+		sh_F_s[n] = 0.;
+	}
+	
+	__syncthreads();
 
-		__syncthreads();
-
-
-		for (k = 0; k < overflow / 2; k++)	//iterate forall of the excess values
+		for (k = 0; k < tpoints; k++)	//iterate for all remaining values
 		{
 			xs = sh_s[k * 2 + 0];		//x value
 			ys = sh_s[k * 2 + 1];		//y value
 
 			del = delta(xs, ys, x, y);
 
-			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1.*epsilon[numtiles*tile/2 + k];		//calculate force x
-			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1.*epsilon[numtiles*tile/2 + k];		//calculate force y
-			
+			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1.*epsilon[numtiles*tpoints + k];		//calculate force x
+			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1.*epsilon[numtiles*tpoints + k];		//calculate force y
+
+			//__syncthreads();
 		}
-
-	}
-
+		
+	
+	
 	__syncthreads();
 
+	/*for (k = numtiles*tpoints; k < Ns; k++)
+	{
+	xs = s[k * 2 + 0];
+	ys = s[k * 2 + 1];
+
+	del = delta(xs, ys, x, y);
+
+	force[0 * size + j] += F_s[2 * k + 0] * del * 1.*epsilon[k];
+	force[1 * size + j] += F_s[2 * k + 1] * del * 1.*epsilon[k];
+	}*/
 
 	//this is the original code, without using shared memory
 	/*for (k = 0; k < Ns; k++)
@@ -196,10 +216,14 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 			c_l[3 * 2 + 1] * f[9 * j + 3] + c_l[4 * 2 + 1] * f[9 * j + 4] + c_l[5 * 2 + 1] * f[9 * j + 5] +
 			c_l[6 * 2 + 1] * f[9 * j + 6] + c_l[7 * 2 + 1] * f[9 * j + 7] + c_l[8 * 2 + 1] * f[9 * j + 8] + 0.5*force[1 * size + j]) / rho[j];
 
+	__syncthreads();
+
 	if (x == XDIM - 5)
 	{
-			Q[0] += u[2 * j + 0]/200.;
+			Q[0] += u[2 * j + 0]/256.;
 	}
+
+	__syncthreads();
 }
 
 

@@ -55,6 +55,10 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 {
 	int n(0), j(0);
 
+	int f_length = 9600;
+
+	int length = 96;
+
 	double arcl(0.);
 	int phase(0.);
 
@@ -65,12 +69,12 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 
 	int threadnum = blockDim.x*blockIdx.x + threadIdx.x;
 
-	int k = threadnum % 10000;
+	int k = threadnum % f_length;
 
-	int m = (threadnum - k) / 10000;
+	int m = (threadnum - k) / f_length;
 
 	{
-		arcl = 1.*k / 10000;
+		arcl = 1.*k / f_length;
 
 		if (it + m*p_step == T) phase = T;
 		else phase = (it + m*p_step) % T;
@@ -107,38 +111,38 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 
 		}
 
-		s[5 * (k + m * 10000) + 0] = 1. * 115 * a_n[2 * 0 + 0] * 0.5 + offset;
-		s[5 * (k + m * 10000) + 1] = 1. * 115 * a_n[2 * 0 + 1] * 0.5;
-		s[5 * (k + m * 10000) + 2] = 115 * arcl;
+		s[5 * (k + m * f_length) + 0] = 1. * 111 * a_n[2 * 0 + 0] * 0.5 + offset;
+		s[5 * (k + m * f_length) + 1] = 1. * 111 * a_n[2 * 0 + 1] * 0.5;
+		s[5 * (k + m * f_length) + 2] = 111 * arcl;
 
 		for (n = 1; n < 7; n++)
 		{
-			s[5 * (k + m * 10000) + 0] += 1. * 115 * (a_n[2 * n + 0] * cos(n*2.*PI*phase / T) + b_n[2 * n + 0] * sin(n*2.*PI*phase / T));
-			s[5 * (k + m * 10000) + 1] += 1. * 115 * (a_n[2 * n + 1] * cos(n*2.*PI*phase / T) + b_n[2 * n + 1] * sin(n*2.*PI*phase / T));
+			s[5 * (k + m * f_length) + 0] += 1. * 111 * (a_n[2 * n + 0] * cos(n*2.*PI*phase / T) + b_n[2 * n + 0] * sin(n*2.*PI*phase / T));
+			s[5 * (k + m * f_length) + 1] += 1. * 111 * (a_n[2 * n + 1] * cos(n*2.*PI*phase / T) + b_n[2 * n + 1] * sin(n*2.*PI*phase / T));
 		}
 
 		if (it > 0)
 		{
-			s[5 * (k + m * 10000) + 3] = s[5 * (k + m * 10000) + 0] - lasts[2 * (k + m * 10000) + 0];
-			s[5 * (k + m * 10000) + 4] = s[5 * (k + m * 10000) + 1] - lasts[2 * (k + m * 10000) + 1];
+			s[5 * (k + m * f_length) + 3] = s[5 * (k + m * f_length) + 0] - lasts[2 * (k + m * f_length) + 0];
+			s[5 * (k + m * f_length) + 4] = s[5 * (k + m * f_length) + 1] - lasts[2 * (k + m * f_length) + 1];
 		}
 		
 
-		lasts[2 * (k + m * 10000) + 0] = s[5 * (k + m * 10000) + 0];
-		lasts[2 * (k + m * 10000) + 1] = s[5 * (k + m * 10000) + 1];
+		lasts[2 * (k + m * f_length) + 0] = s[5 * (k + m * f_length) + 0];
+		lasts[2 * (k + m * f_length) + 1] = s[5 * (k + m * f_length) + 1];
 	}
 
-	for (j = m*100 ; j < (m + 1)*100; j++)
+	for (j = m*length ; j < (m + 1)*length; j++)
 	{
-		b_length = j%100;
+		b_length = j%length;
 
-		if (abs(s[5 * (k + m * 10000) + 2] - b_length) < 0.01)
+		if (abs(s[5 * (k + m * f_length) + 2] - b_length) < 0.01)
 		{
-			b_points[5 * j + 0] = s[5 * (k + m * 10000) + 0];
-			b_points[5 * j + 1] = s[5 * (k + m * 10000) + 1];
+			b_points[5 * j + 0] = s[5 * (k + m * f_length) + 0];
+			b_points[5 * j + 1] = s[5 * (k + m * f_length) + 1];
 
-			b_points[5 * j + 2] = s[5 * (k + m * 10000) + 3];
-			b_points[5 * j + 3] = s[5 * (k + m * 10000) + 4];
+			b_points[5 * j + 2] = s[5 * (k + m * f_length) + 3];
+			b_points[5 * j + 3] = s[5 * (k + m * f_length) + 4];
 
 		}
 		
@@ -148,6 +152,8 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 void boundary_check(const int m, const double c_space, const int c_num, const int L, const double * s, int * epsilon)
 {
 	int r(0), k(0), l(0);
+
+	int length = 96;
 
 	int b_cross = 0;
 	int lowest = 0;
@@ -170,8 +176,8 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 
 		for (k = lowest; k < L; k++)
 		{
-			x_m = s[2 * (k + m * 100) + 0];
-			y_m = s[2 * (k + m * 100) + 1];
+			x_m = s[2 * (k + m * length) + 0];
+			y_m = s[2 * (k + m * length) + 1];
 
 			for (l = lowest; l < L; l++)
 			{
@@ -180,20 +186,20 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 
 				if (m-r < 0)
 				{
-					x_l = s[2 * (l + (m - r + c_num) * 100) + 0];
-					y_l = s[2 * (l + (m - r + c_num) * 100) + 1];
+					x_l = s[2 * (l + (m - r + c_num) * length) + 0];
+					y_l = s[2 * (l + (m - r + c_num) * length) + 1];
 				}
 				else
 				{
-					x_l = s[2 * (l + (m - r) * 100) + 0];
-					y_l = s[2 * (l + (m - r) * 100) + 1];
+					x_l = s[2 * (l + (m - r) * length) + 0];
+					y_l = s[2 * (l + (m - r) * length) + 1];
 				}
 
 				if (abs(x_l - x_m) < 1) xclose = 1;
 
 				if (abs(y_l - y_m) < 1) yclose = 1;
 
-				if (xclose && yclose) epsilon[(k + m * 100)] = 0;
+				if (xclose && yclose) epsilon[(k + m * length)] = 0;
 
 			}
 		}
@@ -229,12 +235,12 @@ int main(int argc, char * argv[])
 	unsigned int c_num = 6;
 	double Re = 1.0;
 	unsigned int XDIM = 300;
-	unsigned int YDIM = 200;
+	unsigned int YDIM = 192;
 	unsigned int T = 100000;
 	unsigned int ITERATIONS = T;
 	unsigned int INTERVAL = 100;
-	unsigned int LENGTH = 100;
-	unsigned int c_space = 50;
+	unsigned int LENGTH = 96;
+	unsigned int c_space = 48;
 	bool ShARC = 0;
 	bool BigData = 0;
 
@@ -297,12 +303,12 @@ int main(int argc, char * argv[])
 	//double offset = 0.;
 
 	double * lasts;
-	lasts = new double[2 * c_num * 10000];
+	lasts = new double[2 * c_num * 9600];
 
 	double * boundary;
-	boundary = new double[5 * c_num * 10000];
+	boundary = new double[5 * c_num * 9600];
 
-	int Np = 100 * c_num;
+	int Np = 96 * c_num;
 	double * b_points;
 
 	b_points = new double[5 * Np];
@@ -310,7 +316,7 @@ int main(int argc, char * argv[])
 	
 	const int size = XDIM*YDIM;
 
-	for (k = 0; k < c_num*10000; k++)
+	for (k = 0; k < c_num*9600; k++)
 	{
 		boundary[5 * k + 0] = 0.;
 		boundary[5 * k + 1] = 0.;
@@ -328,7 +334,7 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 1000;
+	int blocksize = 1024;
 
 	int gridsize = size / blocksize;
 
@@ -336,9 +342,9 @@ int main(int argc, char * argv[])
 
 	int gridsize2 = 1;
 
-	if (blocksize2 > 1000)
+	if (blocksize2 > 1024)
 	{
-		for (blocksize2 = 1000; blocksize2 > 0; blocksize2 -= LENGTH)
+		for (blocksize2 = 1024; blocksize2 > 0; blocksize2 -= LENGTH)
 		{
 			if ((c_num*LENGTH) % blocksize2 == 0)
 			{
@@ -348,8 +354,8 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	int blocksize3 = 500;
-	int gridsize3 = 20 * c_num;
+	int blocksize3 = 640;
+	int gridsize3 = 9600/blocksize3 * c_num;		
 
 	cudaError_t cudaStatus;
 
@@ -543,12 +549,12 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMalloc of epsilon failed!\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_lasts, 2 * c_num * 10000 * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_lasts, 2 * c_num * 9600 * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed!\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_boundary, 5 * c_num * 10000 * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_boundary, 5 * c_num * 9600 * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed!\n");
 		}
@@ -678,10 +684,10 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy failed!");
 		}
 
-		cudaStatus = cudaMemcpy(d_lasts, lasts, 2 * c_num * 10000 * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_lasts, lasts, 2 * c_num * 9600 * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of lasts failed!"); }
 
-		cudaStatus = cudaMemcpy(d_boundary, boundary, 5 * c_num * 10000 * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_boundary, boundary, 5 * c_num * 9600 * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of boundary failed!"); }
 
 
@@ -988,7 +994,7 @@ int main(int argc, char * argv[])
 				for (k = 0; k < Ns; k++)
 				{
 					fsA << s[2 * k + 0]*x_scale << "\t" << s[2 * k + 1]*x_scale << "\t" << u_s[2 * k + 0]*s_scale << "\t" << u_s[2 * k + 1]*s_scale << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
-					if (k % 100 == 99 || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
+					if (k % 96 == 95 || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
 				}
 
 				fsA.close();
