@@ -207,20 +207,31 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 
 }
 
-double  free_space(const int XDIM, const int c_num, const int L, const double * b_points, const int level)
+double  free_space(const int XDIM, const int c_num, const int L, const double * b_points)
 {
 	int cilium_p = 0;
 	int cilium_m = 0;
+	int level = 1;
+	int i = 95;
 	double space(0.);
+	bool done = 0;
 
-	cilium_p = (0 + level) * L;
-	cilium_m = (c_num - level) * L;
+	cout << "in" << endl;
 
-	for (int i = 0; i < L; i++)
+	for (level = 1; level < 6 && !done; level++)
 	{
-		space += 1.*(b_points[5*(cilium_p + i) + 0] - (b_points[5*(cilium_m + i) + 0] - XDIM))*(i*1./ L) / L / (b_points[5 * (cilium_p) + 0] - (b_points[5 * (cilium_m) + 0] - XDIM));
+		cilium_p = (0 + level) * L;
+		cilium_m = (c_num - level) * L;
+
+		if(b_points[5*(cilium_p+i) + 1] > 60)
+		{
+			space = 1.*(b_points[5 * (cilium_p + i) + 0] - (b_points[5 * (cilium_m + i) + 0] - XDIM)) 
+				/ (b_points[5 * (cilium_p)+0] - (b_points[5 * (cilium_m)+0] - XDIM));
+
+			done = 1;
+		}
+		else space = 100;
 	}
-	
 
 	return space;
 
@@ -362,10 +373,7 @@ int main(int argc, char * argv[])
 	double Q = 0.;
 	double W = 0.;
 	double f_space_1 = 0.;
-	double f_space_2 = 0.;
-	double f_space_3 = 0.;
-	double f_space_4 = 0.;
-	double f_space_5 = 0.;
+	
 	bool done = 0;
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
@@ -796,15 +804,11 @@ int main(int argc, char * argv[])
 			
 			if (1.*it / ITERATIONS > 0.166 && !done)
 			{
-				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
-				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
-				f_space_3 = free_space(XDIM, c_num, LENGTH, b_points, 3);
-				f_space_4 = free_space(XDIM, c_num, LENGTH, b_points, 4);
-				f_space_5 = free_space(XDIM, c_num, LENGTH, b_points, 5);
+				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points);
 
 				fsD.open(fspace.c_str(), ofstream::app);
 
-				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << "\t" << f_space_4 << "\t" << f_space_5 << endl;
+				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << endl;
 
 				fsD.close();
 
