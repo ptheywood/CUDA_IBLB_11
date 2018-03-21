@@ -98,11 +98,11 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	double xs(0.), ys(0.), del(0.);
 
-	int size = 256 * XDIM;
+	int size = 192 * XDIM;
 
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
-	const int tile = 1024;	//size of a tile, same as blockdim.x
+	const int tile = 512;	//size of a tile, same as blockdim.x
 
 	const int tpoints = tile / 2;
 
@@ -112,6 +112,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 	
 	__shared__ double sh_s[tile];	//shared version of s array
 	__shared__ double sh_F_s[tile];	//shared version of F_s array
+	__shared__ int sh_epsilon[tile];
 
 	j = blockIdx.x*blockDim.x + threadIdx.x;	//unique thread ID
 
@@ -128,9 +129,11 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
 	{
+		__syncthreads();
 
 		sh_s[n] = s[m*tile + n];		//take values from next tile in the arrays to shared memory
 		sh_F_s[n] = F_s[m*tile + n];
+		if(n<tpoints) sh_epsilon[n] = epsilon[m*tpoints + n];
 
 		__syncthreads();
 
@@ -142,8 +145,8 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 			del = delta(xs, ys, x, y);
 
-			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * epsilon[m*tpoints + k];		//calculate force x
-			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * epsilon[m*tpoints + k];		//calculate force y
+			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * sh_epsilon[k];		//calculate force x
+			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * sh_epsilon[k];		//calculate force y
 
 			//__syncthreads();
 		}
@@ -220,7 +223,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	if (x == XDIM - 5)
 	{
-			Q[0] += u[2 * j + 0]/256.;
+			Q[0] += u[2 * j + 0]/192.;
 	}
 
 	__syncthreads();

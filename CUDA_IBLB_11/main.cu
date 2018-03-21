@@ -367,7 +367,7 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 1024;
+	int blocksize = 512;
 
 	int gridsize = size / blocksize;
 
