@@ -31,24 +31,44 @@ using namespace std;
 double l_0 = 0.000006;					//6 MICRON CILIUM LENGTH
 double t_0 = 0.067;						//67ms BEAT PERIOD AT 15Hz
 
-__constant__ double A_mn[7 * 2 * 3] =
+//__constant__ double A_mn[7 * 2 * 3] =						//WITH MUCUS PRESENT
+//{
+//	-0.449,	 0.130, -0.169,	 0.063, -0.050, -0.040, -0.068,
+//	2.076, -0.003,	 0.054,	 0.007,	 0.026,	 0.022,	 0.010,
+//	-0.072, -1.502,	 0.260, -0.123,	 0.011, -0.009,	 0.196,
+//	-1.074, -0.230, -0.305, -0.180, -0.069,	 0.001, -0.080,
+//	0.658,	 0.793, -0.251,	 0.049,	 0.009,	 0.023, -0.111,
+//	0.381,	 0.331,	 0.193,	 0.082,	 0.029,	 0.002,	 0.048
+//};
+//
+//__constant__ double B_mn[7 * 2 * 3] =
+//{
+//	0.0, -0.030, -0.093,  0.037,  0.062,  0.016, -0.065,
+//	0.0,  0.080, -0.044, -0.017,  0.052,  0.007,  0.051,
+//	0.0,  1.285, -0.036, -0.244, -0.093, -0.137,  0.095,
+//	0.0, -0.298,  0.513,  0.004, -0.222,  0.035, -0.128,
+//	0.0, -1.034,  0.050,  0.143,  0.043,  0.098, -0.054,
+//	0.0,  0.210, -0.367,  0.009,  0.120, -0.024,  0.102
+//};
+
+__constant__ double A_mn[7 * 2 * 3] =						//WITHOUT MUCUS
 {
-	-0.449,	 0.130, -0.169,	 0.063, -0.050, -0.040, -0.068,
-	2.076, -0.003,	 0.054,	 0.007,	 0.026,	 0.022,	 0.010,
-	-0.072, -1.502,	 0.260, -0.123,	 0.011, -0.009,	 0.196,
-	-1.074, -0.230, -0.305, -0.180, -0.069,	 0.001, -0.080,
-	0.658,	 0.793, -0.251,	 0.049,	 0.009,	 0.023, -0.111,
-	0.381,	 0.331,	 0.193,	 0.082,	 0.029,	 0.002,	 0.048
+	-0.654,	 0.393,	-0.097,	 0.079,	 0.119,	 0.119,	 0.009,
+	1.895,	-0.018,	 0.158,	 0.010,	 0.003,	 0.013,	 0.040,
+	0.787,	-1.516,	 0.032,	-0.302,	-0.252,	-0.015,	 0.035,
+	-0.552,	-0.126,	-0.341,	 0.035,	 0.006, -0.029,	-0.068,
+	0.202,	 0.716,	-0.118,	 0.142,	 0.110,	-0.013,	-0.043,
+	0.096,	 0.263,	 0.186,	-0.067,	-0.032,	-0.002,	 0.015
 };
 
 __constant__ double B_mn[7 * 2 * 3] =
 {
-	0.0, -0.030, -0.093,  0.037,  0.062,  0.016, -0.065,
-	0.0,  0.080, -0.044, -0.017,  0.052,  0.007,  0.051,
-	0.0,  1.285, -0.036, -0.244, -0.093, -0.137,  0.095,
-	0.0, -0.298,  0.513,  0.004, -0.222,  0.035, -0.128,
-	0.0, -1.034,  0.050,  0.143,  0.043,  0.098, -0.054,
-	0.0,  0.210, -0.367,  0.009,  0.120, -0.024,  0.102
+	0.0,	 0.284,	 0.006,	-0.059,	 0.018,	 0.053,	 0.009,
+	0.0,	 0.192,	-0.050,	 0.012,	-0.007,	-0.014,	-0.017,
+	0.0,	 1.045,	 0.317,	 0.226,	 0.004,	-0.082,	-0.040,
+	0.0,	-0.499,	 0.423,	 0.138,	 0.125,	 0.075,	 0.067,
+	0.0,	-1.017,	-0.276,	-0.196,	-0.037,	 0.025,	 0.023,
+	0.0,	 0.339,	-0.327,	-0.114,	-0.105,	-0.057,	-0.055
 };
 
 __global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, double * s, double * lasts, double * b_points)
@@ -216,7 +236,7 @@ double  free_space(const int XDIM, const int c_num, const int L, const double * 
 	double space(0.);
 	bool done = 0;
 
-	cout << "in" << endl;
+	
 
 	for (level = 1; level < 6 && !done; level++)
 	{
@@ -232,6 +252,8 @@ double  free_space(const int XDIM, const int c_num, const int L, const double * 
 		}
 		else space = 100;
 	}
+
+	cout << level << endl;
 
 	return space;
 
@@ -585,9 +607,13 @@ int main(int argc, char * argv[])
 	string raw_data = output_data + "Raw/";
 	raw_data += to_string(c_num);
 	raw_data += "/";
+	raw_data += to_string(c_fraction);
+	raw_data += "/";
 
 	string cilia_data =  output_data + "Cilia/";
 	cilia_data += to_string(c_num);
+	cilia_data += "/";
+	cilia_data += to_string(c_fraction);
 	cilia_data += "/";
 
 	string img_data = output_data + "Img/";
@@ -605,11 +631,8 @@ int main(int argc, char * argv[])
 
 	string parameters = raw_data + "/SimLog.txt";
 
-	string input = "Data/cilium/";
-	input += to_string(c_num);
-	input += "/";
 
-	ofstream fsA(input.c_str());
+	ofstream fsA(output_data.c_str());
 
 	ofstream fsB(flux.c_str());
 
@@ -802,7 +825,7 @@ int main(int argc, char * argv[])
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
 
 			
-			if (1.*it / ITERATIONS > 0.166 && !done)
+			/*if (1.*it / ITERATIONS > 0.166 && !done)
 			{
 				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points);
 
@@ -813,7 +836,7 @@ int main(int argc, char * argv[])
 				fsD.close();
 
 				done = 1;
-			}
+			}*/
 
 			for (j = 0; j < c_num*LENGTH; j++)
 			{

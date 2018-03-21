@@ -34,6 +34,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E78F8151-1AB7-47C1-81E4-46550F4D7E61}</ProjectGuid>
     <RootNamespace>CUDA_IBLB_11</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
