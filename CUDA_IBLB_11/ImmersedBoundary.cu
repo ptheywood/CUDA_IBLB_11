@@ -48,6 +48,17 @@ __device__ double delta(const double & xs, const double & ys, const int & x, con
 	return delta;
 }
 
+__device__ double MyAtomicAdd(double* address, double val)
+{
+	unsigned long long int* address_as_ull = (unsigned long long int*)address;
+	unsigned long long int old = *address_as_ull, assumed;
+	do
+	{
+		assumed = old;
+		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+	} while (assumed != old);
+}
+
 __global__ void interpolate(const double * rho, const double * u, const int Ns, const double * u_s, double * F_s, const double * s, const int XDIM)
 {
 
@@ -102,7 +113,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
-	const int tile = 512;	//size of a tile, same as blockdim.x
+	const int tile = 128;	//size of a tile, same as blockdim.x
 
 	const int tpoints = tile / 2;
 
@@ -126,6 +137,8 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	x = j%XDIM;
 	y = (j - j%XDIM) / XDIM;
+
+	double temp;
 
 	for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
 	{
@@ -223,7 +236,9 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	if (x == XDIM - 5)
 	{
-			Q[0] += u[2 * j + 0]/192.;
+		//Q[0] += u[2 * j + 0]/192.;
+		temp = u[2 * j + 0] / 192.;
+		MyAtomicAdd(Q, temp);
 	}
 
 	__syncthreads();

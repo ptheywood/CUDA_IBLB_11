@@ -267,11 +267,11 @@ int main(int argc, char * argv[])
 	unsigned int c_fraction = 1;
 	unsigned int c_num = 6;
 	double Re = 1.0;
-	unsigned int XDIM = 300;
+	unsigned int XDIM = 288;
 	unsigned int YDIM = 192;
 	unsigned int T = 100000;
 	unsigned int ITERATIONS = T;
-	unsigned int INTERVAL = 100;
+	unsigned int INTERVAL = 500;
 	unsigned int LENGTH = 96;
 	unsigned int c_space = 48;
 	bool ShARC = 0;
@@ -367,7 +367,7 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 512;
+	int blocksize = 128;
 
 	int gridsize = size / blocksize;
 
