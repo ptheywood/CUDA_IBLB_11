@@ -48,7 +48,7 @@ __device__ double delta(const double & xs, const double & ys, const int & x, con
 	return delta;
 }
 
-__device__ double MyAtomicAdd(double* address, double val)
+__device__ void DoubleAtomicAdd(double* address, double val)
 {
 	unsigned long long int* address_as_ull = (unsigned long long int*)address;
 	unsigned long long int old = *address_as_ull, assumed;
@@ -195,20 +195,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 			//__syncthreads();
 		}
 		
-	
-	
 	__syncthreads();
-
-	/*for (k = numtiles*tpoints; k < Ns; k++)
-	{
-	xs = s[k * 2 + 0];
-	ys = s[k * 2 + 1];
-
-	del = delta(xs, ys, x, y);
-
-	force[0 * size + j] += F_s[2 * k + 0] * del * 1.*epsilon[k];
-	force[1 * size + j] += F_s[2 * k + 1] * del * 1.*epsilon[k];
-	}*/
 
 	//this is the original code, without using shared memory
 	/*for (k = 0; k < Ns; k++)
@@ -238,7 +225,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 	{
 		//Q[0] += u[2 * j + 0]/192.;
 		temp = u[2 * j + 0] / 192.;
-		MyAtomicAdd(Q, temp);
+		DoubleAtomicAdd(Q, temp);
 	}
 
 	__syncthreads();
