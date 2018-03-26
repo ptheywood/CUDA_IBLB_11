@@ -238,7 +238,10 @@ double  free_space(const int XDIM, const int c_num, const int L, const double * 
 
 	for (int i = 0; i < L; i++)
 	{
-		space += 1.*(b_points[5 * (cilium_p + i) + 0] - (b_points[5 * (cilium_m + i) + 0] - XDIM))*(i*1. / L) / L / (b_points[5 * (cilium_p)+0] - (b_points[5 * (cilium_m)+0] - XDIM));
+		space += 1. 
+			* (b_points[5 * (cilium_p + i) + 0] - (b_points[5 * (cilium_m + i) + 0] - XDIM))
+			* (i * 1. / L) 
+			/ (L * (b_points[5 * (cilium_p)+0] - (b_points[5 * (cilium_m)+0] - XDIM)));
 	}
 
 
