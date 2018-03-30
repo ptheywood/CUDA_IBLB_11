@@ -302,7 +302,7 @@ int main(int argc, char * argv[])
 
 	double t_scale = 1000.*dt*t_0;					//milliseconds
 	double x_scale = 1000000. * dx*l_0;				//microns
-	double s_scale = 1000.*x_scale / t_scale;		//millimetres per second
+	double s_scale = x_scale / t_scale;		//millimetres per second
 
 	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
 	const double TAU2 = 1. / (12.*(TAU - (1. / 2.))) + (1. / 2.);
@@ -386,10 +386,8 @@ int main(int argc, char * argv[])
 	double W = 0.;
 	double f_space_1 = 0.;
 	double f_space_2 = 0.;
-	double f_space_3 = 0.;
 	
 	bool done1 = 0;
-	bool done2 = 0;
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
 	else cudaStatus = cudaSetDevice(0);
@@ -818,32 +816,20 @@ int main(int argc, char * argv[])
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
 
 			
-			if (1.*it / ITERATIONS > 0.166 && !done1)
+			if (1.*it / T > 0.09 && !done1)
 			{
 				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
-				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 1);
+				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
 
 				fsD.open(fspace.c_str(), ofstream::app);
 
-				//fsD << c_fraction *1./ c_num << "\t" << f_space_1 << endl;
+				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << endl;
 
 				fsD.close();
 
 				done1 = 1;
 			}
 
-			if (1.*it / ITERATIONS > 0.667 && !done2)
-			{
-				f_space_3 = free_space(XDIM, c_num, LENGTH, b_points, 1);
-
-				fsD.open(fspace.c_str(), ofstream::app);
-
-				fsD << c_fraction *1. / c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << endl;
-
-				fsD.close();
-
-				done2 = 1;
-			}
 
 			for (j = 0; j < c_num*LENGTH; j++)
 			{
