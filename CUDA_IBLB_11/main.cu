@@ -236,16 +236,35 @@ double  free_space(const int XDIM, const int c_num, const int L, const double * 
 	cilium_p = (0 + level) * L;
 	cilium_m = (c_num - level) * L;
 
-	for (int i = 0; i < L; i++)
+	/*for (int i = 0; i < L; i++)
 	{
 		space += 1. 
 			* (b_points[5 * (cilium_p + i) + 0] - (b_points[5 * (cilium_m + i) + 0] - XDIM))
 			* (i * 1. / L) 
 			/ (L * (b_points[5 * (cilium_p)+0] - (b_points[5 * (cilium_m)+0] - XDIM)));
-	}
+	}*/
 
+	space += 1.* (b_points[5 * (cilium_p + (L - 1)) + 0] - b_points[5 * (cilium_m + (L - 1)) + 0]);
 
 	return space;
+
+}
+
+double  impedence(const int XDIM, const int c_num, const int L, const double * b_points, const int level)
+{
+	int cilium_p = 0;
+	int cilium_m = 0;
+	double imp(0.);
+
+	cilium_p = (0 + level) * L;
+	cilium_m = (c_num - level) * L;
+
+	
+	imp += 1.* (b_points[5 * (cilium_p + (L-1)) + 1] + b_points[5 * (cilium_m + (L - 1)) + 1])/2.;
+	
+
+
+	return imp;
 
 }
 
@@ -386,6 +405,11 @@ int main(int argc, char * argv[])
 	double W = 0.;
 	double f_space_1 = 0.;
 	double f_space_2 = 0.;
+	double f_space_3 = 0.;
+	double imp_1 = 0.;
+	double imp_2 = 0.;
+	double imp_3 = 0.;
+
 	
 	bool done1 = 0;
 
@@ -820,10 +844,15 @@ int main(int argc, char * argv[])
 			{
 				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
 				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
+				f_space_3 = free_space(XDIM, c_num, LENGTH, b_points, 3);
+
+				imp_1 = impedence(XDIM, c_num, LENGTH, b_points, 1);
+				imp_2 = impedence(XDIM, c_num, LENGTH, b_points, 2);
+				imp_3 = impedence(XDIM, c_num, LENGTH, b_points, 3);
 
 				fsD.open(fspace.c_str(), ofstream::app);
 
-				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << endl;
+				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << "\t" << imp_1 << "\t" << imp_2 << "\t" << imp_3 << endl;
 
 				fsD.close();
 
