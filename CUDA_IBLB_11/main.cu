@@ -230,11 +230,11 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 double  free_space(const int XDIM, const int c_num, const int L, const double * b_points, const int level)
 {
 	int cilium_p = 0;
-	int cilium_m = 0;
+	//int cilium_m = 0;
 	double space(0.);
 
 	cilium_p = (0 + level) * L;
-	cilium_m = (c_num - level) * L;
+	//cilium_m = (c_num - level) * L;
 
 	/*for (int i = 0; i < L; i++)
 	{
@@ -244,7 +244,7 @@ double  free_space(const int XDIM, const int c_num, const int L, const double * 
 			/ (L * (b_points[5 * (cilium_p)+0] - (b_points[5 * (cilium_m)+0] - XDIM)));
 	}*/
 
-	space += 1.* (b_points[5 * (cilium_p + (L - 1)) + 0] - b_points[5 * (cilium_m + (L - 1)) + 0]);
+	space += 1.* (b_points[5 * (cilium_p + (L - 1)) + 0] - b_points[5 * (0 + (L - 1)) + 0]);
 
 	return space;
 
@@ -253,14 +253,14 @@ double  free_space(const int XDIM, const int c_num, const int L, const double * 
 double  impedence(const int XDIM, const int c_num, const int L, const double * b_points, const int level)
 {
 	int cilium_p = 0;
-	int cilium_m = 0;
+	//int cilium_m = 0;
 	double imp(0.);
 
 	cilium_p = (0 + level) * L;
-	cilium_m = (c_num - level) * L;
+	//cilium_m = (c_num - level) * L;
 
 	
-	imp += 1.* (b_points[5 * (cilium_p + (L-1)) + 1] + b_points[5 * (cilium_m + (L - 1)) + 1])/2.;
+	imp += 1.* b_points[5 * (cilium_p + (L - 1)) + 1];
 	
 
 
@@ -268,6 +268,13 @@ double  impedence(const int XDIM, const int c_num, const int L, const double * b
 
 }
 
+template <typename T>
+std::string to_string_3(const T a_value, const int n = 3)
+{
+	std::ostringstream out;
+	out << std::setprecision(n) << a_value;
+	return out.str();
+}
 
 int main(int argc, char * argv[])
 {
@@ -279,16 +286,19 @@ int main(int argc, char * argv[])
 	unsigned int XDIM = 288;
 	unsigned int YDIM = 192;
 	unsigned int T = 100000;
+	unsigned int T_pow = 1;
+	unsigned int T_num = 1;
 	unsigned int ITERATIONS = T;
+	unsigned int I_pow = 1;
 	unsigned int INTERVAL = 500;
 	unsigned int LENGTH = 96;
 	unsigned int c_space = 48;
 	bool ShARC = 0;
 	bool BigData = 0;
 
-	if (argc < 10)
+	if (argc < 11)
 	{
-		cout << "Too few arguments! " << argc - 1 << " entered of 9 required. " << endl;
+		cout << "Too few arguments! " << argc - 1 << " entered of 10 required. " << endl;
 
 		return 1;
 	}
@@ -296,15 +306,18 @@ int main(int argc, char * argv[])
 
 	stringstream arg;
 
-	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] << ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9];
+	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
+		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10];
 
-	arg >> c_fraction >> c_num >> c_space >> Re >> T >> ITERATIONS >> INTERVAL >> ShARC >> BigData ;
+	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> INTERVAL >> ShARC >> BigData ;
 
 
 
 
 	
 	XDIM = c_num*c_space;
+	T = T_num * pow(10, T_pow);
+	ITERATIONS = T; // pow(10, I_pow);
 
 	if (XDIM <= 2 * LENGTH)
 	{
@@ -406,9 +419,13 @@ int main(int argc, char * argv[])
 	double f_space_1 = 0.;
 	double f_space_2 = 0.;
 	double f_space_3 = 0.;
+	double f_space_4 = 0.;
+	double f_space_5 = 0.;
 	double imp_1 = 0.;
 	double imp_2 = 0.;
 	double imp_3 = 0.;
+	double imp_4 = 0.;
+	double imp_5 = 0.;
 
 	
 	bool done1 = 0;
@@ -640,7 +657,7 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------BOUNDARY INITIALISATION------------------------------------------------
 
-	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "-flux.dat";
+	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "_" + to_string_3(Re) + "_" + to_string(T_num) + "-flux.dat";
 
 	string fspace = output_data + "/Flux/" + to_string(c_space) + "-free_space.dat";
 
@@ -845,14 +862,18 @@ int main(int argc, char * argv[])
 				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
 				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
 				f_space_3 = free_space(XDIM, c_num, LENGTH, b_points, 3);
+				f_space_4 = free_space(XDIM, c_num, LENGTH, b_points, 4);
+				f_space_5 = free_space(XDIM, c_num, LENGTH, b_points, 5);
 
 				imp_1 = impedence(XDIM, c_num, LENGTH, b_points, 1);
 				imp_2 = impedence(XDIM, c_num, LENGTH, b_points, 2);
 				imp_3 = impedence(XDIM, c_num, LENGTH, b_points, 3);
+				imp_4 = impedence(XDIM, c_num, LENGTH, b_points, 4);
+				imp_5 = impedence(XDIM, c_num, LENGTH, b_points, 5);
 
 				fsD.open(fspace.c_str(), ofstream::app);
 
-				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << "\t" << imp_1 << "\t" << imp_2 << "\t" << imp_3 << endl;
+				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << "\t" << f_space_4 << "\t" << f_space_5 << "\t" << imp_1 << "\t" << imp_2 << "\t" << imp_3 << "\t" << imp_4 << "\t" << imp_5 << endl;
 
 				fsD.close();
 
