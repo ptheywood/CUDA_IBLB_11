@@ -18,6 +18,19 @@ __constant__ double c_l[9 * 2] =		//VELOCITY COMPONENTS
 	1.,1. , -1.,1. , -1.,-1. , 1.,-1.
 };
 
+__device__ double sqroot(double square)
+{
+	const double MINDIFF = 0.1;
+	double root = square / 0.75, last, diff = 1;
+	if (square <= 0) return 0;
+	do {
+		last = root;
+		root = (root + square / root) / 2;
+		diff = root - last;
+	} while (diff > MINDIFF || diff < -MINDIFF);
+	return root;
+}
+
 __device__ double delta(const double & xs, const double & ys, const int & x, const int & y)
 {
 	double deltax(0.), deltay(0.), delta(0.);
@@ -25,23 +38,55 @@ __device__ double delta(const double & xs, const double & ys, const int & x, con
 	double dx = abs(x - xs);
 	double dy = abs(y - ys);
 
+	double a(0.), b(0.), d(0.);
+	int c(0);
+
 	if (dx <= 1.5)
 	{
 		if (dx <= 0.5)
 		{
-			deltax = (1. / 3.)*(1. + sqrt(-3. * dx*dx + 1.));
+			//deltax = (1. / 3.)*(1. + sqrt(-3. * dx*dx + 1.));
+			a = 0.33333;
+			b = 1.;
+			c = 1;
+			d = dx;
 		}
-		else deltax = (1. / 6.)*(5. - 3. * dx - sqrt(-3. * (1. - dx)*(1. - dx) + 1.));
+		else //deltax = (1. / 6.)*(5. - 3. * dx - sqrt(-3. * (1. - dx)*(1. - dx) + 1.));
+		{
+			a = 0.16667;
+			b = 5.-3.*dx;
+			c = -1;
+			d = 1-dx;
+		}
 	}
+
+	deltax = a*(b + c*sqrt(-3.*d*d + 1));
+
+	a = 0.;
+	b = 0.;
+	c = 0;
+	d = 0.;
 
 	if (dy <= 1.5)
 	{
 		if (dy <= 0.5)
 		{
-			deltay = (1. / 3.)*(1. + sqrt(-3. * dy*dy + 1.));
+			//deltay = (1. / 3.)*(1. + sqrt(-3. * dy*dy + 1.));
+			a = 0.33333;
+			b = 1.;
+			c = 1;
+			d = dy;
 		}
-		else deltay = (1. / 6.)*(5. - 3. * dy - sqrt(-3. * (1. - dy)*(1. - dy) + 1.));
+		else //deltay = (1. / 6.)*(5. - 3. * dy - sqrt(-3. * (1. - dy)*(1. - dy) + 1.));
+		{
+			a = 0.16667;
+			b = 5. - 3.*dy;
+			c = -1;
+			d = 1 - dy;
+		}
 	}
+
+	deltay = a*(b + c*sqrt(-3.*d*d + 1));
 
 	delta = deltax * deltay;
 

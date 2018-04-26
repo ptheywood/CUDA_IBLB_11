@@ -289,7 +289,8 @@ int main(int argc, char * argv[])
 	unsigned int T_pow = 1;
 	unsigned int T_num = 1;
 	unsigned int ITERATIONS = T;
-	unsigned int I_pow = 1;
+	unsigned int P_num = 100;
+	float I_pow = 1.0;
 	unsigned int INTERVAL = 500;
 	unsigned int LENGTH = 96;
 	unsigned int c_space = 48;
@@ -309,7 +310,7 @@ int main(int argc, char * argv[])
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
 		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10];
 
-	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> INTERVAL >> ShARC >> BigData ;
+	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData ;
 
 
 
@@ -317,11 +318,12 @@ int main(int argc, char * argv[])
 	
 	XDIM = c_num*c_space;
 	T = T_num * pow(10, T_pow);
-	ITERATIONS = T; // pow(10, I_pow);
+	ITERATIONS = T*I_pow; 
+	INTERVAL = ITERATIONS / P_num;
 
 	if (XDIM <= 2 * LENGTH)
 	{
-		cout << "not enough cilia in simulation! cilia spacing of " << c_space << "requires atleast " << 2 * LENGTH / c_space << " cilia" << endl;
+		cout << "not enough cilia in simulation! cilia spacing of " << c_space << "requires at least " << 2 * LENGTH / c_space << " cilia" << endl;
 
 		return 1;
 	}
