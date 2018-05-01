@@ -31,12 +31,12 @@ __device__ double sqroot(double square)
 	return root;
 }
 
-__device__ double delta(const double & xs, const double & ys, const int & x, const int & y)
+__device__ float d_delta(const float & xs, const float & ys, const int & x, const int & y)
 {
-	double deltax(0.), deltay(0.), delta(0.);
+	float deltax(0.), deltay(0.), delta(0.);
 
-	double dx = abs(x - xs);
-	double dy = abs(y - ys);
+	float dx = abs(x - xs);
+	float dy = abs(y - ys);
 
 	double a(0.), b(0.), d(0.);
 	int c(0);
@@ -104,7 +104,7 @@ __device__ void DoubleAtomicAdd(double* address, double val)
 	} while (assumed != old);
 }
 
-__global__ void interpolate(const double * rho, const double * u, const int Ns, const double * u_s, double * F_s, const double * s, const int XDIM)
+__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM)
 {
 
 	int i(0), j(0), k(0), x0(0), y0(0), x(0), y(0);
@@ -132,7 +132,7 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 			j = y*XDIM + x;
 
-			del = delta(xs, ys, x, y);
+			del = d_delta(xs, ys, x, y);
 
 			F_s[2 * k + 0] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 0] - u[2 * j + 0]);
 			F_s[2 * k + 1] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 1] - u[2 * j + 1]);
@@ -146,13 +146,13 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 // rho[SIZE]: fluid density	u[2*size]: fluid velocity	f[9*size]: density function		Ns: No. of cilia boundary points	u_s[2*Ns]: cilia velocity	F_s[2*Ns]: cilia force	
 // force[2*size]: fluid force	s[2*Ns]: cilia position	XDIM: x dimension	Q: Net flow		epsilon[Ns]: boundary point switching
 
-__global__ void spread(const double * rho, double * u, const double * f, const int Ns, const double * u_s, const double * F_s, double * force, const double * s, const int XDIM, double * Q, const int * epsilon)
+__global__ void spread(const double * rho, double * u, const double * f, const int Ns, const float * u_s, const float * F_s, double * force, const float * s, const int XDIM, double * Q, const int * epsilon)
 {
 	int j(0), k(0), x(0), y(0);
 
 	int n(0), m(0);
 
-	double xs(0.), ys(0.), del(0.);
+	float xs(0.), ys(0.), del(0.);
 
 	int size = 192 * XDIM;
 
@@ -166,8 +166,8 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 	
 	int excess = (2 * Ns) % tile;	//number of values outside of full tiles
 	
-	__shared__ double sh_s[tile];	//shared version of s array
-	__shared__ double sh_F_s[tile];	//shared version of F_s array
+	__shared__ float sh_s[tile];	//shared version of s array
+	__shared__ float sh_F_s[tile];	//shared version of F_s array
 	__shared__ int sh_epsilon[tile];
 
 	j = blockIdx.x*blockDim.x + threadIdx.x;	//unique thread ID
@@ -201,7 +201,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 			xs = sh_s[2 * k + 0];		//x value
 			ys = sh_s[2 * k + 1];		//y value
 
-			del = delta(xs, ys, x, y);
+			del = d_delta(xs, ys, x, y);
 
 			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * sh_epsilon[k];		//calculate force x
 			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * sh_epsilon[k];		//calculate force y
@@ -232,7 +232,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 			xs = sh_s[k * 2 + 0];		//x value
 			ys = sh_s[k * 2 + 1];		//y value
 
-			del = delta(xs, ys, x, y);
+			del = d_delta(xs, ys, x, y);
 
 			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1.*epsilon[numtiles*tpoints + k];		//calculate force x
 			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1.*epsilon[numtiles*tpoints + k];		//calculate force y
@@ -271,6 +271,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 		//Q[0] += u[2 * j + 0]/192.;
 		temp = u[2 * j + 0] / 192.;
 		DoubleAtomicAdd(Q, temp);
+
 	}
 
 	__syncthreads();

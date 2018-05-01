@@ -71,7 +71,7 @@ __constant__ double B_mn[7 * 2 * 3] =
 	0.0,	 0.339,	-0.327,	-0.114,	-0.105,	-0.057,	-0.055
 };
 
-__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, double * s, double * lasts, double * b_points)
+__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, double * s, double * lasts, float * b_points)
 {
 	int n(0), j(0);
 
@@ -169,7 +169,7 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 	}
 }
 
-void boundary_check(const int m, const double c_space, const int c_num, const int L, const double * s, int * epsilon)
+void boundary_check(const int m, const double c_space, const int c_num, const int L, const float * s, int * epsilon)
 {
 	int r(0), k(0), l(0);
 
@@ -227,7 +227,7 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 
 }
 
-double  free_space(const int XDIM, const int c_num, const int L, const double * b_points, const int level)
+double  free_space(const int XDIM, const int c_num, const int L, const float * b_points, const int level)
 {
 	int cilium_p = 0;
 	//int cilium_m = 0;
@@ -250,7 +250,7 @@ double  free_space(const int XDIM, const int c_num, const int L, const double * 
 
 }
 
-double  impedence(const int XDIM, const int c_num, const int L, const double * b_points, const int level)
+double  impedence(const int XDIM, const int c_num, const int L, const float * b_points, const int level)
 {
 	int cilium_p = 0;
 	//int cilium_m = 0;
@@ -287,7 +287,7 @@ int main(int argc, char * argv[])
 	unsigned int YDIM = 192;
 	unsigned int T = 100000;
 	unsigned int T_pow = 1;
-	unsigned int T_num = 1;
+	float T_num = 1.0;
 	unsigned int ITERATIONS = T;
 	unsigned int P_num = 100;
 	float I_pow = 1.0;
@@ -317,7 +317,7 @@ int main(int argc, char * argv[])
 
 	
 	XDIM = c_num*c_space;
-	T = T_num * pow(10, T_pow);
+	T = nearbyint(T_num * pow(10, T_pow));
 	ITERATIONS = T*I_pow; 
 	INTERVAL = ITERATIONS / P_num;
 
@@ -366,9 +366,9 @@ int main(int argc, char * argv[])
 	boundary = new double[5 * c_num * 9600];
 
 	int Np = 96 * c_num;
-	double * b_points;
+	float * b_points;
 
-	b_points = new double[5 * Np];
+	b_points = new float[5 * Np];
 
 	
 	const int size = XDIM*YDIM;
@@ -482,19 +482,19 @@ int main(int argc, char * argv[])
 	unsigned int Ns = LENGTH * c_num;		//NUMBER OF BOUNDARY POINTS
 
 
-	double * s;							//BOUNDARY POINTS
+	float * s;							//BOUNDARY POINTS
 
-	double * u_s;						//BOUNDARY POINT VELOCITY
+	float * u_s;						//BOUNDARY POINT VELOCITY
 
-	double * F_s;						//BOUNDARY FORCE
+	float * F_s;						//BOUNDARY FORCE
 
 	int * epsilon;
 
-	s = new double[2 * Ns];
+	s = new float[2 * Ns];
 
-	u_s = new double[2 * Ns];
+	u_s = new float[2 * Ns];
 
-	F_s = new double[2 * Ns];
+	F_s = new float[2 * Ns];
 
 	epsilon = new int[Ns];
 
@@ -522,11 +522,11 @@ int main(int argc, char * argv[])
 
 	double * d_F;
 
-	double * d_F_s;
+	float * d_F_s;
 
-	double * d_s;
+	float * d_s;
 
-	double * d_u_s;
+	float * d_u_s;
 
 	int * d_epsilon;
 
@@ -538,7 +538,7 @@ int main(int argc, char * argv[])
 
 	double * d_boundary;
 
-	double * d_b_points;
+	float * d_b_points;
 
 
 
@@ -593,17 +593,17 @@ int main(int argc, char * argv[])
 
 	{
 
-		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of F_s failed!\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_s, 2 * Ns * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of s failed!\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_u_s, 2 * Ns * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_u_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed!\n");
 		}
@@ -659,7 +659,7 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------BOUNDARY INITIALISATION------------------------------------------------
 
-	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "_" + to_string_3(Re) + "_" + to_string(T_num) + "-flux.dat";
+	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "_" + to_string_3(Re) + "_" + to_string_3(T_num) + "-flux.dat";
 
 	string fspace = output_data + "/Flux/" + to_string(c_space) + "-free_space.dat";
 
@@ -855,7 +855,7 @@ int main(int argc, char * argv[])
 			cudaStatus = cudaGetLastError();
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_filament failed: %s\n", cudaGetErrorString(cudaStatus)); }
 
-			cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(double), cudaMemcpyDeviceToHost);
+			cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(float), cudaMemcpyDeviceToHost);
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
 
 			
@@ -926,17 +926,17 @@ int main(int argc, char * argv[])
 				fprintf(stderr, "cudaMemcpy of epsilon failed!\n");
 			}
 
-			cudaStatus = cudaMemcpy(d_s, s, 2 * Ns * sizeof(double), cudaMemcpyHostToDevice);
+			cudaStatus = cudaMemcpy(d_s, s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of s failed!\n");
 			}
 
-			cudaStatus = cudaMemcpy(d_u_s, u_s, 2 * Ns * sizeof(double), cudaMemcpyHostToDevice);
+			cudaStatus = cudaMemcpy(d_u_s, u_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of u_s failed!\n");
 			}
 
-			cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * sizeof(double), cudaMemcpyHostToDevice);
+			cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of F_s failed!\n");
 			}
@@ -982,7 +982,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		interpolate << <gridsize2, blocksize2 >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM);											//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2 >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM);					//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1018,7 +1018,7 @@ int main(int argc, char * argv[])
 				fprintf(stderr, "cudaMemcpy of u failed!\n");
 			}
 
-			cudaStatus = cudaMemcpy(F_s, d_F_s, 2 * Ns * sizeof(double), cudaMemcpyDeviceToHost);
+			cudaStatus = cudaMemcpy(F_s, d_F_s, 2 * Ns * sizeof(float), cudaMemcpyDeviceToHost);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of rho failed!\n");
 			}
