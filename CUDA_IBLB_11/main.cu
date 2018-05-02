@@ -169,9 +169,9 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 	}
 }
 
-void boundary_check(const int m, const double c_space, const int c_num, const int L, const float * s, int * epsilon)
+void boundary_check(const double c_space, const int c_num, const int L, const float * s, int * epsilon)
 {
-	int r(0), k(0), l(0);
+	int r(0), k(0), l(0), m(0);
 
 	int length = 96;
 
@@ -183,12 +183,13 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 
 	int r_max = 2 * L / c_space;
 
-	double x_m(0.), y_m(0.), x_l(0.), y_l(0.);
+	float x_m(0.), y_m(0.), x_l(0.), y_l(0.);
+
+	for (m = 0; m < c_num; m++)
+	{
 
 	for (r = 1; r <= r_max; r++)
 	{
-		
-
 		b_cross = 2 * L - r*c_space;
 
 		if (b_cross > L) lowest = 0;
@@ -204,7 +205,7 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 				xclose = 0;
 				yclose = 0;
 
-				if (m-r < 0)
+				if (m - r < 0)
 				{
 					x_l = s[2 * (l + (m - r + c_num) * length) + 0];
 					y_l = s[2 * (l + (m - r + c_num) * length) + 1];
@@ -224,6 +225,7 @@ void boundary_check(const int m, const double c_space, const int c_num, const in
 			}
 		}
 	}
+}
 
 }
 
@@ -859,7 +861,7 @@ int main(int argc, char * argv[])
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
 
 			
-			if (1.*it / T > 0.09 && !done1)
+			/*if (1.*it / T > 0.09 && !done1)
 			{
 				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
 				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
@@ -880,38 +882,36 @@ int main(int argc, char * argv[])
 				fsD.close();
 
 				done1 = 1;
-			}
+			}*/
 
 
 			for (j = 0; j < c_num*LENGTH; j++)
 			{
-				k = j;
+				s[2 * j + 0] = (c_space*c_num) / 2. + b_points[5 * j + 0];
 
-				s[2 * k + 0] = (c_space*c_num) / 2. + b_points[5 * j + 0];
+				if (s[2 * j + 0] < 0) s[2 * j + 0] += XDIM;
+				else if (s[2 * j + 0] > XDIM) s[2 * j + 0] -= XDIM;
 
-				if (s[2 * k + 0] < 0) s[2 * k + 0] += XDIM;
-				else if (s[2 * k + 0] > XDIM) s[2 * k + 0] -= XDIM;
-
-				s[2 * k + 1] = b_points[5 * j + 1] + 1;
+				s[2 * j + 1] = b_points[5 * j + 1] + 1;
 
 				if (it == 0)
 				{
-					u_s[2 * k + 0] = 0.;
-					u_s[2 * k + 1] = 0.;
+					u_s[2 * j + 0] = 0.;
+					u_s[2 * j + 1] = 0.;
 				}
 				else
 				{
-					u_s[2 * k + 0] = b_points[5 * j + 2];
-					u_s[2 * k + 1] = b_points[5 * j + 3];
+					u_s[2 * j + 0] = b_points[5 * j + 2];
+					u_s[2 * j + 1] = b_points[5 * j + 3];
 				}
 
-				epsilon[k] = 1;
+				epsilon[j] = 1;
 			}
 		
 		
-		for (m = 0; m < c_num; m++)
+		//for (m = 0; m < c_num; m++)
 		{
-			boundary_check(m, c_space, c_num, LENGTH, s, epsilon);
+			boundary_check(c_space, c_num, LENGTH, s, epsilon);
 		}
 
 		
@@ -1066,7 +1066,7 @@ int main(int argc, char * argv[])
 				for (k = 0; k < Ns; k++)
 				{
 					fsA << s[2 * k + 0]*x_scale << "\t" << s[2 * k + 1]*x_scale << "\t" << u_s[2 * k + 0]*s_scale << "\t" << u_s[2 * k + 1]*s_scale << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
-					if (k % 96 == 95 || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
+					if (k % 96 == 95 || s[2 * k + 0] > XDIM || s[2 * k + 0] < 1) fsA << "\n";
 				}
 
 				fsA.close();
