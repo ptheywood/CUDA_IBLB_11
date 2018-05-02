@@ -158,7 +158,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
-	const int tile = 128;	//size of a tile, same as blockdim.x
+	const int tile = 256;	//size of a tile, same as blockdim.x
 
 	const int tpoints = tile / 2;
 
@@ -179,6 +179,8 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	sh_s[n] = 0.;
 	sh_F_s[n] = 0.;
+
+	sh_epsilon[n] = 0;
 
 	x = j%XDIM;
 	y = (j - j%XDIM) / XDIM;
@@ -268,7 +270,6 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	if (x == XDIM - 5)
 	{
-		//Q[0] += u[2 * j + 0]/192.;
 		temp = u[2 * j + 0] / 192.;
 		DoubleAtomicAdd(Q, temp);
 
