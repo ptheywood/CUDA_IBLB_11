@@ -20,6 +20,8 @@
 
 using namespace std;
 
+
+
 //------------------------------------------PHYSICAL CONSTANTS----------------------------
 
 #define C_S 0.577		//SPEED OF SOUND ON LATTICE
@@ -169,14 +171,11 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 	}
 }
 
-void boundary_check(const double c_space, const int c_num, const int XDIM, const int it, const float *  b_points,  float * s, float * u_s, int * epsilon)
+__global__ void boundary_check(const double c_space, const int c_num, const int XDIM, const int it, const float *  b_points,  float * s, float * u_s, int * epsilon)
 {
-	int r(0), j(0), k(0), l(0), m(0);
+	int r(0), j(0), l(0), m(0);
 
 	int length = 96;
-
-	int b_cross = 0;
-	int lowest = 0;
 
 	bool xclose = 0;
 	bool yclose = 0;
@@ -185,7 +184,9 @@ void boundary_check(const double c_space, const int c_num, const int XDIM, const
 
 	float x_m(0.), y_m(0.), x_l(0.), y_l(0.);
 
-	for (j = 0; j < c_num*length; j++)
+	j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	//for (j = 0; j < c_num*length; j++)
 	{
 		s[2 * j + 0] = (c_space*c_num) / 2. + b_points[5 * j + 0];
 
@@ -208,47 +209,43 @@ void boundary_check(const double c_space, const int c_num, const int XDIM, const
 		epsilon[j] = 1;
 	}
 
-	for (m = 0; m < c_num; m++)
+	__syncthreads();
+
+	//for (j = 0; j < c_num*length; j++)
 	{
+			m = (j - j%length) / length;
 
-	for (r = 1; r <= r_max; r++)
-	{
-		b_cross = 2 * length - r*c_space;
+			x_m = s[2 * j + 0];
+			y_m = s[2 * j + 1];
 
-		if (b_cross > length) lowest = 0;
-		else lowest = length - b_cross;
-
-		for (k = lowest; k < length; k++)
-		{
-			x_m = s[2 * (k + m * length) + 0];
-			y_m = s[2 * (k + m * length) + 1];
-
-			for (l = lowest; l < length; l++)
+			for (r = 1; r < r_max; r++)
 			{
-				xclose = 0;
-				yclose = 0;
-
-				if (m - r < 0)
+				for (l = 0; l < length; l++)
 				{
-					x_l = s[2 * (l + (m - r + c_num) * length) + 0];
-					y_l = s[2 * (l + (m - r + c_num) * length) + 1];
+					xclose = 0;
+					yclose = 0;
+
+					if (m - r < 0)
+					{
+						x_l = s[2 * (l + (m - r + c_num) * length) + 0];
+						y_l = s[2 * (l + (m - r + c_num) * length) + 1];
+					}
+					else
+					{
+						x_l = s[2 * (l + (m - r) * length) + 0];
+						y_l = s[2 * (l + (m - r) * length) + 1];
+					}
+
+					if (abs(x_l - x_m) < 1) xclose = 1;
+
+					if (abs(y_l - y_m) < 1) yclose = 1;
+
+					if (xclose && yclose) epsilon[j] = 0;
+
 				}
-				else
-				{
-					x_l = s[2 * (l + (m - r) * length) + 0];
-					y_l = s[2 * (l + (m - r) * length) + 1];
-				}
-
-				if (abs(x_l - x_m) < 1) xclose = 1;
-
-				if (abs(y_l - y_m) < 1) yclose = 1;
-
-				if (xclose && yclose) epsilon[(k + m * length)] = 0;
-
-			}
-		}
 	}
 }
+
 
 }
 
@@ -386,9 +383,9 @@ int main(int argc, char * argv[])
 	boundary = new double[5 * c_num * 9600];
 
 	int Np = 96 * c_num;
-	float * b_points;
+	//float * b_points;
 
-	b_points = new float[5 * Np];
+	//b_points = new float[5 * Np];
 
 	
 	const int size = XDIM*YDIM;
@@ -772,6 +769,11 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy failed!");
 		}
 
+		cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of F_s failed!\n");
+		}
+
 		cudaStatus = cudaMemcpy(d_lasts, lasts, 2 * c_num * 9600 * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of lasts failed!"); }
 
@@ -866,23 +868,28 @@ int main(int argc, char * argv[])
 
 	time_t start = seconds();
 
+	
+
 	for (it = 0; it < ITERATIONS; it++)
 	{
 	
 		//--------------------------CILIA BEAT DEFINITION-------------------------
 
-		
-			
-			define_filament << <gridsize3, blocksize3 >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points);
+		define_filament << <gridsize3, blocksize3 >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points);
 
+		{
 			cudaStatus = cudaGetLastError();
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_filament failed: %s\n", cudaGetErrorString(cudaStatus)); }
+		}
 
-			cudaStatus = cudaMemcpy(b_points, d_b_points, 5 * Np * sizeof(float), cudaMemcpyDeviceToHost);
-			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of b_points failed!\n"); }
+		boundary_check << <gridsize2, blocksize2 >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon);
 
-			
-			/*if (1.*it / T > 0.09 && !done1)
+		{
+			cudaStatus = cudaGetLastError();
+			if (cudaStatus != cudaSuccess) { fprintf(stderr, "boundary_check failed: %s\n", cudaGetErrorString(cudaStatus)); }
+		}
+
+		/*if (1.*it / T > 0.09 && !done1)
 			{
 				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
 				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
@@ -904,38 +911,9 @@ int main(int argc, char * argv[])
 
 				done1 = 1;
 			}*/
-
-		boundary_check(c_space, c_num, XDIM, it, b_points, s, u_s, epsilon);
-		
-		//---------------------------CILIUM COPY---------------------------------------- 
-
-		{
-
-			cudaStatus = cudaMemcpy(d_epsilon, epsilon, Ns * sizeof(int), cudaMemcpyHostToDevice);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpy of epsilon failed!\n");
-			}
-
-			cudaStatus = cudaMemcpy(d_s, s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpy of s failed!\n");
-			}
-
-			cudaStatus = cudaMemcpy(d_u_s, u_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpy of u_s failed!\n");
-			}
-
-			cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpy of F_s failed!\n");
-			}
-		}
-
-
 		//---------------------------IMMERSED BOUNDARY LATTICE BOLTZMANN STEPS-------------------
 
-		equilibrium << <gridsize, blocksize >> > (d_u, d_rho, d_f0, d_force, d_F, XDIM, YDIM, TAU);				//EQUILIBRIUM STEP
+		equilibrium << <gridsize, blocksize >> > (d_u, d_rho, d_f0, d_force, d_F, XDIM, YDIM, TAU);					//EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -944,7 +922,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		collision << <gridsize, blocksize >> > (d_f0, d_f, d_f1, d_F, TAU, TAU2, XDIM, YDIM, it);						//COLLISION STEP
+		collision << <gridsize, blocksize >> > (d_f0, d_f, d_f1, d_F, TAU, TAU2, XDIM, YDIM, it);					//COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -972,7 +950,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		interpolate << <gridsize2, blocksize2 >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM);					//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2 >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -993,15 +971,7 @@ int main(int argc, char * argv[])
 				return 1;
 			}
 
-			cudaStatus = cudaMemcpy(rho, d_rho, size * sizeof(double), cudaMemcpyDeviceToHost);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpy of rho failed!\n");
-			}
-
-			cudaStatus = cudaMemcpy(u, d_u, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpy of u failed!\n");
-			}
+			
 
 			cudaStatus = cudaMemcpy(&Q, d_Q, sizeof(double), cudaMemcpyDeviceToHost);
 			if (cudaStatus != cudaSuccess) {
@@ -1022,14 +992,20 @@ int main(int argc, char * argv[])
 			//W += u_s[2 * j + 0]* u_s[2 * j + 0]*(u_s[2 * j + 0]/abs(u_s[2 * j + 0]));
 		}
 
-
-		
-
-
 		if (it % INTERVAL == 0)
 		{
 			if (BigData)
 			{
+				cudaStatus = cudaMemcpy(rho, d_rho, size * sizeof(double), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) {
+					fprintf(stderr, "cudaMemcpy of rho failed!\n");
+				}
+
+				cudaStatus = cudaMemcpy(u, d_u, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) {
+					fprintf(stderr, "cudaMemcpy of u failed!\n");
+				}
+
 				outfile = raw_data + to_string(it) + "-fluid.dat";
 
 				fsA.open(outfile.c_str());
@@ -1048,6 +1024,15 @@ int main(int argc, char * argv[])
 				}
 
 				fsA.close();
+
+				cudaStatus = cudaMemcpy(s, d_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of s failed!\n"); }
+
+				cudaStatus = cudaMemcpy(u_s, d_u_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of u_s failed!\n"); }
+
+				cudaStatus = cudaMemcpy(epsilon, d_epsilon, Np * sizeof(float), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of epsilon failed!\n"); }
 
 				outfile = cilia_data + to_string(it) + "-cilia.dat";
 
