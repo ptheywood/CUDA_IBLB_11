@@ -420,6 +420,8 @@ int main(int argc, char * argv[])
 
 	double Q = 0.;
 	double W = 0.;
+
+/*
 	double f_space_1 = 0.;
 	double f_space_2 = 0.;
 	double f_space_3 = 0.;
@@ -433,6 +435,7 @@ int main(int argc, char * argv[])
 
 	
 	bool done1 = 0;
+*/
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
 	else cudaStatus = cudaSetDevice(0);
