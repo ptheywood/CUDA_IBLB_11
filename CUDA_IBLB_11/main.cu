@@ -73,7 +73,7 @@ __constant__ double B_mn[7 * 2 * 3] =
 	0.0,	 0.339,	-0.327,	-0.114,	-0.105,	-0.057,	-0.055
 };
 
-__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, double * s, double * lasts, float * b_points)
+__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, float * s, float * lasts, float * b_points)
 {
 	int n(0), j(0);
 
@@ -81,13 +81,13 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 
 	int length = 96;
 
-	double arcl(0.);
+	float arcl(0.);
 	int phase(0.);
 
-	double b_length(0.);
+	float b_length(0.);
 
-	double a_n[2 * 7];
-	double b_n[2 * 7];
+	float a_n[2 * 7];
+	float b_n[2 * 7];
 
 	int threadnum = blockDim.x*blockIdx.x + threadIdx.x;
 
@@ -101,7 +101,7 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 		if (it + m*p_step == T) phase = T;
 		else phase = (it + m*p_step) % T;
 
-		double offset = 1.*(m - (c_num - 1) / 2.)*c_space;
+		float offset = 1.*(m - (c_num - 1) / 2.)*c_space;
 
 
 
@@ -376,11 +376,11 @@ int main(int argc, char * argv[])
 	
 	//double offset = 0.;
 
-	double * lasts;
-	lasts = new double[2 * c_num * 9600];
+	float * lasts;
+	lasts = new float[2 * c_num * 9600];
 
-	double * boundary;
-	boundary = new double[5 * c_num * 9600];
+	float * boundary;
+	boundary = new float[5 * c_num * 9600];
 
 	int Np = 96 * c_num;
 	//float * b_points;
@@ -428,13 +428,13 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	int blocksize3 = 640;
+	int blocksize3 = 48;
 	int gridsize3 = 9600/blocksize3 * c_num;		
 
 	cudaError_t cudaStatus;
 
 	double Q = 0.;
-	double W = 0.;
+	//double W = 0.;
 
 /*
 	double f_space_1 = 0.;
@@ -554,9 +554,9 @@ int main(int argc, char * argv[])
 
 	
 
-	double * d_lasts;
+	float * d_lasts;
 
-	double * d_boundary;
+	float * d_boundary;
 
 	float * d_b_points;
 
@@ -633,17 +633,17 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMalloc of epsilon failed!\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_lasts, 2 * c_num * 9600 * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_lasts, 2 * c_num * 9600 * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed!\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_boundary, 5 * c_num * 9600 * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_boundary, 5 * c_num * 9600 * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed!\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_b_points, 5 * Np * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_b_points, 5 * Np * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed!\n");
 		}
@@ -774,16 +774,16 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy of F_s failed!\n");
 		}
 
-		cudaStatus = cudaMemcpy(d_lasts, lasts, 2 * c_num * 9600 * sizeof(double), cudaMemcpyHostToDevice);
-		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of lasts failed!"); }
+		cudaStatus = cudaMemcpy(d_lasts, lasts, 2 * c_num * 9600 * sizeof(float), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of lasts failed!\n"); }
 
-		cudaStatus = cudaMemcpy(d_boundary, boundary, 5 * c_num * 9600 * sizeof(double), cudaMemcpyHostToDevice);
-		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of boundary failed!"); }
+		cudaStatus = cudaMemcpy(d_boundary, boundary, 5 * c_num * 9600 * sizeof(float), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of boundary failed!\n"); }
 
 
 		cudaStatus = cudaMemcpy(d_Q, &Q, sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
+			fprintf(stderr, "cudaMemcpy of Q failed!\n");
 		}
 
 
@@ -862,27 +862,31 @@ int main(int argc, char * argv[])
 	else fsC << "Running on local GPU" << endl;
 
 
+	cudaStream_t c_stream;
+	cudaStream_t f_stream;
+
+	cudaStreamCreate(&c_stream);
+	cudaStreamCreate(&f_stream);
+
 
 	//--------------------------ITERATION LOOP-----------------------------
 	cout << "Running Simulation...\n";
 
 	time_t start = seconds();
 
-	
-
 	for (it = 0; it < ITERATIONS; it++)
 	{
 	
 		//--------------------------CILIA BEAT DEFINITION-------------------------
 
-		define_filament << <gridsize3, blocksize3 >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points);
+		define_filament << <gridsize3, blocksize3, 0, c_stream >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points);
 
 		{
 			cudaStatus = cudaGetLastError();
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_filament failed: %s\n", cudaGetErrorString(cudaStatus)); }
 		}
 
-		boundary_check << <gridsize2, blocksize2 >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon);
+		boundary_check << <gridsize2, blocksize2, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon);
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -913,7 +917,7 @@ int main(int argc, char * argv[])
 			}*/
 		//---------------------------IMMERSED BOUNDARY LATTICE BOLTZMANN STEPS-------------------
 
-		equilibrium << <gridsize, blocksize >> > (d_u, d_rho, d_f0, d_force, d_F, XDIM, YDIM, TAU);					//EQUILIBRIUM STEP
+		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho, d_f0, d_force, d_F, XDIM, YDIM, TAU);					//EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -922,7 +926,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		collision << <gridsize, blocksize >> > (d_f0, d_f, d_f1, d_F, TAU, TAU2, XDIM, YDIM, it);					//COLLISION STEP
+		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0, d_f, d_f1, d_F, TAU, TAU2, XDIM, YDIM, it);					//COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -931,7 +935,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		streaming << <gridsize, blocksize >> > (d_f1, d_f, XDIM, YDIM);												//STREAMING STEP
+		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1, d_f, XDIM, YDIM);												//STREAMING STEP
 
 		{																											// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -941,7 +945,7 @@ int main(int argc, char * argv[])
 
 		}
 
-		macro << <gridsize, blocksize >> > (d_f, d_u, d_rho, XDIM, YDIM);											//MACRO STEP
+		macro << <gridsize, blocksize, 0, f_stream >> > (d_f, d_u, d_rho, XDIM, YDIM);											//MACRO STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -985,12 +989,6 @@ int main(int argc, char * argv[])
 		}
 
 		//----------------------------DATA OUTPUT------------------------------
-
-		for (j = 0; j < c_num*LENGTH; j++)
-		{
-			W += abs(F_s[2 * j + 0]) * u_s[2 * j + 0]/c_num/LENGTH;
-			//W += u_s[2 * j + 0]* u_s[2 * j + 0]*(u_s[2 * j + 0]/abs(u_s[2 * j + 0]));
-		}
 
 		if (it % INTERVAL == 0)
 		{
@@ -1073,6 +1071,9 @@ int main(int argc, char * argv[])
 		}
 
 	}
+
+	cudaStreamDestroy(c_stream);
+	cudaStreamDestroy(f_stream);
 
 	fsB.open(flux.c_str(), ofstream::app);
 

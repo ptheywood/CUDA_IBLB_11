@@ -179,7 +179,6 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	sh_s[n] = 0.;
 	sh_F_s[n] = 0.;
-
 	sh_epsilon[n] = 0;
 
 	x = j%XDIM;
