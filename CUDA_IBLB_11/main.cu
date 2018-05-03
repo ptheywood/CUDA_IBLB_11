@@ -169,9 +169,9 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 	}
 }
 
-void boundary_check(const double c_space, const int c_num, const int L, const float * s, int * epsilon)
+void boundary_check(const double c_space, const int c_num, const int XDIM, const int it, const float *  b_points,  float * s, float * u_s, int * epsilon)
 {
-	int r(0), k(0), l(0), m(0);
+	int r(0), j(0), k(0), l(0), m(0);
 
 	int length = 96;
 
@@ -181,26 +181,49 @@ void boundary_check(const double c_space, const int c_num, const int L, const fl
 	bool xclose = 0;
 	bool yclose = 0;
 
-	int r_max = 2 * L / c_space;
+	int r_max = 2 * length / c_space;
 
 	float x_m(0.), y_m(0.), x_l(0.), y_l(0.);
+
+	for (j = 0; j < c_num*length; j++)
+	{
+		s[2 * j + 0] = (c_space*c_num) / 2. + b_points[5 * j + 0];
+
+		if (s[2 * j + 0] < 0) s[2 * j + 0] += XDIM;
+		else if (s[2 * j + 0] > XDIM) s[2 * j + 0] -= XDIM;
+
+		s[2 * j + 1] = b_points[5 * j + 1] + 1;
+
+		if (it == 0)
+		{
+			u_s[2 * j + 0] = 0.;
+			u_s[2 * j + 1] = 0.;
+		}
+		else
+		{
+			u_s[2 * j + 0] = b_points[5 * j + 2];
+			u_s[2 * j + 1] = b_points[5 * j + 3];
+		}
+
+		epsilon[j] = 1;
+	}
 
 	for (m = 0; m < c_num; m++)
 	{
 
 	for (r = 1; r <= r_max; r++)
 	{
-		b_cross = 2 * L - r*c_space;
+		b_cross = 2 * length - r*c_space;
 
-		if (b_cross > L) lowest = 0;
-		else lowest = L - b_cross;
+		if (b_cross > length) lowest = 0;
+		else lowest = length - b_cross;
 
-		for (k = lowest; k < L; k++)
+		for (k = lowest; k < length; k++)
 		{
 			x_m = s[2 * (k + m * length) + 0];
 			y_m = s[2 * (k + m * length) + 1];
 
-			for (l = lowest; l < L; l++)
+			for (l = lowest; l < length; l++)
 			{
 				xclose = 0;
 				yclose = 0;
@@ -306,7 +329,6 @@ int main(int argc, char * argv[])
 		return 1;
 	}
 	
-
 	stringstream arg;
 
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
@@ -314,10 +336,6 @@ int main(int argc, char * argv[])
 
 	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData ;
 
-
-
-
-	
 	XDIM = c_num*c_space;
 	T = nearbyint(T_num * pow(10, T_pow));
 	ITERATIONS = T*I_pow; 
@@ -352,7 +370,7 @@ int main(int argc, char * argv[])
 
 	cout << "Initialising...\n";
 
-	unsigned int i(0), j(0), k(0), m(0);
+	unsigned int i(0), j(0), k(0);
 
 	unsigned int it(0);
 	//int phase(0);
@@ -887,38 +905,7 @@ int main(int argc, char * argv[])
 				done1 = 1;
 			}*/
 
-
-			for (j = 0; j < c_num*LENGTH; j++)
-			{
-				s[2 * j + 0] = (c_space*c_num) / 2. + b_points[5 * j + 0];
-
-				if (s[2 * j + 0] < 0) s[2 * j + 0] += XDIM;
-				else if (s[2 * j + 0] > XDIM) s[2 * j + 0] -= XDIM;
-
-				s[2 * j + 1] = b_points[5 * j + 1] + 1;
-
-				if (it == 0)
-				{
-					u_s[2 * j + 0] = 0.;
-					u_s[2 * j + 1] = 0.;
-				}
-				else
-				{
-					u_s[2 * j + 0] = b_points[5 * j + 2];
-					u_s[2 * j + 1] = b_points[5 * j + 3];
-				}
-
-				epsilon[j] = 1;
-			}
-		
-		
-		//for (m = 0; m < c_num; m++)
-		{
-			boundary_check(c_space, c_num, LENGTH, s, epsilon);
-		}
-
-		
-
+		boundary_check(c_space, c_num, XDIM, it, b_points, s, u_s, epsilon);
 		
 		//---------------------------CILIUM COPY---------------------------------------- 
 
