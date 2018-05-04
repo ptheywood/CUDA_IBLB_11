@@ -433,7 +433,11 @@ int main(int argc, char * argv[])
 
 	cudaError_t cudaStatus;
 
-	double Q = 0.;
+	double * Q;
+	cudaMallocHost(&Q, sizeof(double));
+	Q[0] = 0.;
+
+	//double Q = 0.;
 	//double W = 0.;
 
 /*
@@ -781,7 +785,7 @@ int main(int argc, char * argv[])
 		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of boundary failed!\n"); }
 
 
-		cudaStatus = cudaMemcpy(d_Q, &Q, sizeof(double), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_Q, Q, sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of Q failed!\n");
 		}
@@ -864,10 +868,24 @@ int main(int argc, char * argv[])
 
 	cudaStream_t c_stream;
 	cudaStream_t f_stream;
+	cudaStream_t o_stream;
 
 	cudaStreamCreate(&c_stream);
 	cudaStreamCreate(&f_stream);
+	cudaStreamCreate(&o_stream);
 
+	cudaEvent_t cilia_done;
+	cudaEvent_t fluid_done;
+	cudaEvent_t Q_done;
+	cudaEvent_t c_done;
+	cudaEvent_t f_done;
+
+	
+	cudaEventCreate(&fluid_done);
+	cudaEventRecord(fluid_done, f_stream);
+	cudaEventCreate(&Q_done);
+	cudaEventRecord(Q_done, f_stream);
+	
 
 	//--------------------------ITERATION LOOP-----------------------------
 	cout << "Running Simulation...\n";
@@ -879,6 +897,8 @@ int main(int argc, char * argv[])
 	
 		//--------------------------CILIA BEAT DEFINITION-------------------------
 
+		cudaEventCreate(&cilia_done);
+		
 		define_filament << <gridsize3, blocksize3, 0, c_stream >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points);
 
 		{
@@ -886,12 +906,17 @@ int main(int argc, char * argv[])
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "define_filament failed: %s\n", cudaGetErrorString(cudaStatus)); }
 		}
 
+		cudaStreamWaitEvent(c_stream, fluid_done, 0);
+		cudaEventDestroy(fluid_done);
+
 		boundary_check << <gridsize2, blocksize2, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon);
 
 		{
 			cudaStatus = cudaGetLastError();
 			if (cudaStatus != cudaSuccess) { fprintf(stderr, "boundary_check failed: %s\n", cudaGetErrorString(cudaStatus)); }
 		}
+
+		cudaEventRecord(cilia_done, c_stream);
 
 		/*if (1.*it / T > 0.09 && !done1)
 			{
@@ -916,6 +941,12 @@ int main(int argc, char * argv[])
 				done1 = 1;
 			}*/
 		//---------------------------IMMERSED BOUNDARY LATTICE BOLTZMANN STEPS-------------------
+
+		cudaEventCreate(&fluid_done);
+
+		cudaStreamWaitEvent(f_stream, Q_done, 0);
+		cudaEventDestroy(Q_done);
+
 
 		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho, d_f0, d_force, d_F, XDIM, YDIM, TAU);					//EQUILIBRIUM STEP
 
@@ -945,6 +976,7 @@ int main(int argc, char * argv[])
 
 		}
 
+		
 		macro << <gridsize, blocksize, 0, f_stream >> > (d_f, d_u, d_rho, XDIM, YDIM);											//MACRO STEP
 
 		{
@@ -954,7 +986,10 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		interpolate << <gridsize2, blocksize2 >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
+		cudaStreamWaitEvent(f_stream, cilia_done, 0);
+		cudaEventDestroy(cilia_done);
+
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -963,7 +998,10 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		spread << <gridsize, blocksize >> > (d_rho, d_u, d_f, Ns, d_u_s, d_F_s, d_force, d_s, XDIM, d_Q, d_epsilon);	//IB SPREADING STEP
+		spread << <gridsize, blocksize, 0, f_stream >> > (d_rho, d_u, d_f, Ns, d_u_s, d_F_s, d_force, d_s, XDIM, d_Q, d_epsilon);	//IB SPREADING STEP
+
+		cudaEventRecord(fluid_done, f_stream);
+		
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -975,17 +1013,16 @@ int main(int argc, char * argv[])
 				return 1;
 			}
 
-			
+			cudaEventCreate(&Q_done);
 
-			cudaStatus = cudaMemcpy(&Q, d_Q, sizeof(double), cudaMemcpyDeviceToHost);
+			cudaStreamWaitEvent(o_stream, fluid_done, 0);
+
+			cudaStatus = cudaMemcpyAsync(Q, d_Q, sizeof(double), cudaMemcpyDeviceToHost, o_stream);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of u failed!\n");
 			}
 
-			cudaStatus = cudaMemcpy(F_s, d_F_s, 2 * Ns * sizeof(float), cudaMemcpyDeviceToHost);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpy of rho failed!\n");
-			}
+			cudaEventRecord(Q_done, o_stream);
 		}
 
 		//----------------------------DATA OUTPUT------------------------------
@@ -994,6 +1031,8 @@ int main(int argc, char * argv[])
 		{
 			if (BigData)
 			{
+				cudaEventSynchronize(fluid_done);
+
 				cudaStatus = cudaMemcpy(rho, d_rho, size * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) {
 					fprintf(stderr, "cudaMemcpy of rho failed!\n");
@@ -1023,6 +1062,8 @@ int main(int argc, char * argv[])
 
 				fsA.close();
 
+				cudaEventSynchronize(cilia_done);
+
 				cudaStatus = cudaMemcpy(s, d_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of s failed!\n"); }
 
@@ -1048,7 +1089,9 @@ int main(int argc, char * argv[])
 			
 			fsB.open(flux.c_str(), ofstream::app);
 
-			fsB << it*t_scale << "\t" << Q * x_scale << endl;
+			cudaEventSynchronize(Q_done);
+
+			fsB << it*t_scale << "\t" << Q[0] * x_scale << endl;
 
 			fsB.close();
 		}
@@ -1074,10 +1117,11 @@ int main(int argc, char * argv[])
 
 	cudaStreamDestroy(c_stream);
 	cudaStreamDestroy(f_stream);
+	cudaStreamDestroy(o_stream);
 
 	fsB.open(flux.c_str(), ofstream::app);
 
-	fsB << it*t_scale << "\t" << Q * x_scale << endl;
+	fsB << it*t_scale << "\t" << Q[0] * x_scale << endl;
 
 	fsB.close();
 	
