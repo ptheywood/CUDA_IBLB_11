@@ -408,7 +408,7 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 256;
+	int blocksize = 128;
 
 	int gridsize = size / blocksize;
 
@@ -708,11 +708,11 @@ int main(int argc, char * argv[])
 	for (j = 0; j < XDIM*YDIM; j++)
 	{
 		rho[j] = RHO_0;
-		u[2 * j + 0] = 0.0;
-		u[2 * j + 1] = 0.0;
+		u[0 * size + j] = 0.0;
+		u[1 * size + j] = 0.0;
 
-		force[2 * j + 0] = 0.;
-		force[2 * j + 1] = 0.;
+		force[0 * size + j] = 0.;
+		force[1 * size + j] = 0.;
 
 
 		for (i = 0; i < 9; i++)
@@ -954,7 +954,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		interpolate << <gridsize2, blocksize2 >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM);						//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2 >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1013,9 +1013,9 @@ int main(int argc, char * argv[])
 					int x = j%XDIM;
 					int y = (j - j%XDIM) / XDIM;
 
-					double ab = sqrt(u[2 * j + 0] * u[2 * j + 0] + u[2 * j + 1] * u[2 * j + 1]);
+					double ab = sqrt(u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << u[2 * j + 0]*s_scale << "\t" << u[2 * j + 1]*s_scale << "\t" << ab*s_scale << "\t" << rho[j] << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << ab*s_scale << "\t" << rho[j] << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
@@ -1039,7 +1039,7 @@ int main(int argc, char * argv[])
 				for (k = 0; k < Ns; k++)
 				{
 					fsA << s[2 * k + 0]*x_scale << "\t" << s[2 * k + 1]*x_scale << "\t" << u_s[2 * k + 0]*s_scale << "\t" << u_s[2 * k + 1]*s_scale << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
-					if (k % 96 == 95 || s[2 * k + 0] > XDIM || s[2 * k + 0] < 1) fsA << "\n";
+					if (k % 96 == 95 || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
 				}
 
 				fsA.close();

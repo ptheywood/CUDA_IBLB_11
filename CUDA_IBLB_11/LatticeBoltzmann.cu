@@ -45,13 +45,13 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 		{
 			
 			f0[9 * j + i] = rho[j] * t[i] * (1
-				+ (u[2 * j + 0] * c_l[2 * i + 0] + u[2 * j + 1] * c_l[2 * i + 1]) / (C_S*C_S)
-				+ (u[2 * j + 0] * c_l[2 * i + 0] + u[2 * j + 1] * c_l[2 * i + 1])*(u[2 * j + 0] * c_l[2 * i + 0] + u[2 * j + 1] * c_l[2 * i + 1]) / (2 * C_S*C_S*C_S*C_S)
-				- (u[2 * j + 0] * u[2 * j + 0] + u[2 * j + 1] * u[2 * j + 1]) / (2 * C_S*C_S));
+				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (C_S*C_S)
+				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1])*(u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (2 * C_S*C_S*C_S*C_S)
+				- (u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]) / (2 * C_S*C_S));
 			
 
-			vec[0] = (c_l[i * 2 + 0] - u[i * 2 + 0]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[i * 2 + 0] + c_l[i * 2 + 1] * u[i * 2 + 1]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 0];
-			vec[1] = (c_l[i * 2 + 1] - u[i * 2 + 1]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[i * 2 + 0] + c_l[i * 2 + 1] * u[i * 2 + 1]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 1];
+			vec[0] = (c_l[i * 2 + 0] - u[0 * size + j]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 0];
+			vec[1] = (c_l[i * 2 + 1] - u[1 * size + j]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 1];
 
 			F[9 * j + i] = (1. - 1. / (2. * TAU))*t[i] * (vec[0] * force[size * 0 + j] + vec[1] * force[size * 1 + j]);
 			
@@ -378,6 +378,8 @@ __global__ void macro(const double * f, double * u, double * rho, int XDIM, int 
 
 	unsigned int i(0), j(0);
 
+	int size = XDIM*YDIM;
+
 	double momentum[2] = { 0,0 };
 
 	{
@@ -385,8 +387,8 @@ __global__ void macro(const double * f, double * u, double * rho, int XDIM, int 
 
 		rho[j] = 0;
 
-		u[2 * j + 0] = 0;
-		u[2 * j + 1] = 0;
+		u[0 * size + j] = 0;
+		u[1 * size + j] = 0;
 
 		momentum[0] = 0;
 		momentum[1] = 0;
@@ -399,8 +401,8 @@ __global__ void macro(const double * f, double * u, double * rho, int XDIM, int 
 			momentum[1] += c_l[i * 2 + 1] * f[9 * j + i];
 		}
 
-		u[2 * j + 0] = momentum[0] / rho[j];
-		u[2 * j + 1] = momentum[1] / rho[j];
+		u[0 * size + j] = momentum[0] / rho[j];
+		u[1 * size + j] = momentum[1] / rho[j];
 
 		
 	}

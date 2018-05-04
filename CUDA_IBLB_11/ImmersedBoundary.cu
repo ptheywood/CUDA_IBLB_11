@@ -18,19 +18,6 @@ __constant__ double c_l[9 * 2] =		//VELOCITY COMPONENTS
 	1.,1. , -1.,1. , -1.,-1. , 1.,-1.
 };
 
-__device__ double sqroot(double square)
-{
-	const double MINDIFF = 0.1;
-	double root = square / 0.75, last, diff = 1;
-	if (square <= 0) return 0;
-	do {
-		last = root;
-		root = (root + square / root) / 2;
-		diff = root - last;
-	} while (diff > MINDIFF || diff < -MINDIFF);
-	return root;
-}
-
 __device__ float d_delta(const float & xs, const float & ys, const int & x, const int & y)
 {
 	float deltax(0.), deltay(0.), delta(0.);
@@ -104,12 +91,14 @@ __device__ void DoubleAtomicAdd(double* address, double val)
 	} while (assumed != old);
 }
 
-__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM)
+__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM, const int YDIM)
 {
 
 	int i(0), j(0), k(0), x0(0), y0(0), x(0), y(0);
 
 	double xs(0.), ys(0.), del(0.);
+
+	int size = XDIM*YDIM;
 
 
 	k = blockIdx.x*blockDim.x + threadIdx.x;
@@ -134,8 +123,8 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 			del = d_delta(xs, ys, x, y);
 
-			F_s[2 * k + 0] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 0] - u[2 * j + 0]);
-			F_s[2 * k + 1] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 1] - u[2 * j + 1]);
+			F_s[2 * k + 0] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 0] - u[0 * size + j]);
+			F_s[2 * k + 1] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 1] - u[1 * size + j]);
 		}
 
 	}
@@ -158,7 +147,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
-	const int tile = 256;	//size of a tile, same as blockdim.x
+	const int tile = 128;	//size of a tile, same as blockdim.x
 
 	const int tpoints = tile / 2;
 
@@ -257,11 +246,11 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	/////////////////////////////////////////////////////////////////END////////////////////////////////////////////////////////////
 
-	u[2 * j + 0] = (c_l[0 * 2 + 0] * f[9 * j + 0] + c_l[1 * 2 + 0] * f[9 * j + 1] + c_l[2 * 2 + 0] * f[9 * j + 2] + 
+	u[0 * size + j] = (c_l[0 * 2 + 0] * f[9 * j + 0] + c_l[1 * 2 + 0] * f[9 * j + 1] + c_l[2 * 2 + 0] * f[9 * j + 2] +
 			c_l[3 * 2 + 0] * f[9 * j + 3] + c_l[4 * 2 + 0] * f[9 * j + 4] + c_l[5 * 2 + 0] * f[9 * j + 5] + 
 			c_l[6 * 2 + 0] * f[9 * j + 6] + c_l[7 * 2 + 0] * f[9 * j + 7] + c_l[8 * 2 + 0] * f[9 * j + 8] + 0.5*force[0 * size + j]) / rho[j];
 
-	u[2 * j + 1] = (c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[2 * 2 + 1] * f[9 * j + 2] +
+	u[1 * size + j] = (c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[2 * 2 + 1] * f[9 * j + 2] +
 			c_l[3 * 2 + 1] * f[9 * j + 3] + c_l[4 * 2 + 1] * f[9 * j + 4] + c_l[5 * 2 + 1] * f[9 * j + 5] +
 			c_l[6 * 2 + 1] * f[9 * j + 6] + c_l[7 * 2 + 1] * f[9 * j + 7] + c_l[8 * 2 + 1] * f[9 * j + 8] + 0.5*force[1 * size + j]) / rho[j];
 
@@ -269,7 +258,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	if (x == XDIM - 5)
 	{
-		temp = u[2 * j + 0] / 192.;
+		temp = u[0 * size + j] / 192.;
 		DoubleAtomicAdd(Q, temp);
 
 	}
