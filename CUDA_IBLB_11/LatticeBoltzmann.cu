@@ -53,7 +53,7 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 			vec[0] = (c_l[i * 2 + 0] - u[0 * size + j]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 0];
 			vec[1] = (c_l[i * 2 + 1] - u[1 * size + j]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 1];
 
-			F[9 * j + i] = (1. - 1. / (2. * TAU))*t[i] * (vec[0] * force[size * 0 + j] + vec[1] * force[size * 1 + j]);
+			F[9 * j + i] = (1. - 1. / (2. * TAU)) * t[i] * (vec[0] * force[size * 0 + j] + vec[1] * force[size * 1 + j]);
 			
 		}
 	}
@@ -72,6 +72,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 	double omega_plus = 1 / TAU;
 	double omega_minus = 1 / TAU2;
 
+
 	double f_plus(0.), f_minus(0.), f0_plus(0.), f0_minus(0.);
 
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
@@ -79,59 +80,58 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 	{
 		j = threadnum;
 
-		//for (i = 0; i < 9; i++)
 		{
 			//f1[9 * j + i] = (1 - (1 / TAU[0]))*f[9 * j + i] + (1 / TAU[0])*f0[9 * j + i] + F[j * 9 + i];
 
-			f1[9 * j + 0] = f[9 * j + 0] - omega_plus*(f[9 * j + 0] - f0[9 * j + 0]) + F[j * 9 + 0];
+			f1[9 * j + 0] = f[9 * j + 0] - omega_plus*(f[9 * j + 0] - f0[9 * j + 0]);
 
 			f_plus = (f[9 * j + 1] + f[9 * j + 3]) / 2.;
 			f_minus = (f[9 * j + 1] - f[9 * j + 3]) / 2.;
 			f0_plus = (f0[9 * j + 1] + f0[9 * j + 3]) / 2.;
 			f0_minus = (f0[9 * j + 1] - f0[9 * j + 3]) / 2.;
 
-			f1[9 * j + 1] = f[9 * j + 1] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus);
+			f1[9 * j + 1] = f[9 * j + 1] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 1];
 
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 3] = f[9 * j + 3] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus);
+			f1[9 * j + 3] = f[9 * j + 3] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 3];
 
 			f_plus = (f[9 * j + 2] + f[9 * j + 4]) / 2.;
 			f_minus = (f[9 * j + 2] - f[9 * j + 4]) / 2.;
 			f0_plus = (f0[9 * j + 2] + f0[9 * j + 4]) / 2.;
 			f0_minus = (f0[9 * j + 2] - f0[9 * j + 4]) / 2.;
 
-			f1[9 * j + 2] = f[9 * j + 2] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus);
+			f1[9 * j + 2] = f[9 * j + 2] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 2];
 
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 4] = f[9 * j + 4] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus);
+			f1[9 * j + 4] = f[9 * j + 4] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 4];
 
 			f_plus = (f[9 * j + 5] + f[9 * j + 7]) / 2.;
 			f_minus = (f[9 * j + 5] - f[9 * j + 7]) / 2.;
 			f0_plus = (f0[9 * j + 5] + f0[9 * j + 7]) / 2.;
 			f0_minus = (f0[9 * j + 5] - f0[9 * j + 7]) / 2.;
 
-			f1[9 * j + 5] = f[9 * j + 5] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus);
+			f1[9 * j + 5] = f[9 * j + 5] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 5];
 
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 7] = f[9 * j + 7] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus);
+			f1[9 * j + 7] = f[9 * j + 7] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 7];
 
 			f_plus = (f[9 * j + 6] + f[9 * j + 8]) / 2.;
 			f_minus = (f[9 * j + 6] - f[9 * j + 8]) / 2.;
 			f0_plus = (f0[9 * j + 6] + f0[9 * j + 8]) / 2.;
 			f0_minus = (f0[9 * j + 6] - f0[9 * j + 8]) / 2.;
 
-			f1[9 * j + 6] = f[9 * j + 6] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus);
+			f1[9 * j + 6] = f[9 * j + 6] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 6];
 
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus);
+			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 8];
 
 		}
 

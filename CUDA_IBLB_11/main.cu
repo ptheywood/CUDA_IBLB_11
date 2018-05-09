@@ -877,8 +877,6 @@ int main(int argc, char * argv[])
 	cudaEvent_t cilia_done;
 	cudaEvent_t fluid_done;
 	cudaEvent_t Q_done;
-	cudaEvent_t c_done;
-	cudaEvent_t f_done;
 
 	
 	cudaEventCreate(&fluid_done);
@@ -1062,7 +1060,7 @@ int main(int argc, char * argv[])
 
 				fsA.close();
 
-				cudaEventSynchronize(cilia_done);
+				//cudaEventSynchronize(cilia_done);
 
 				cudaStatus = cudaMemcpy(s, d_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of s failed!\n"); }
