@@ -436,9 +436,7 @@ int main(int argc, char * argv[])
 	double * Q;
 	cudaMallocHost(&Q, sizeof(double));
 	Q[0] = 0.;
-
-	//double Q = 0.;
-	//double W = 0.;
+	
 
 /*
 	double f_space_1 = 0.;
