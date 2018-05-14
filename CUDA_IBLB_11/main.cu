@@ -681,7 +681,7 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------BOUNDARY INITIALISATION------------------------------------------------
 
-	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "_" + to_string_3(Re) + "_" + to_string_3(T_num) + "-flux.dat";
+	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "_" + to_string_3(Re) + "_" + to_string_3(T_num) + "x" + to_string_3(T_pow) + "-flux.dat";
 
 	string fspace = output_data + "/Flux/" + to_string(c_space) + "-free_space.dat";
 
