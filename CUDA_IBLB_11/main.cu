@@ -186,7 +186,7 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 
 	j = blockIdx.x*blockDim.x + threadIdx.x;
 
-	//for (j = 0; j < c_num*length; j++)
+	
 	{
 		s[2 * j + 0] = (c_space*c_num) / 2. + b_points[5 * j + 0];
 
@@ -211,7 +211,7 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 
 	__syncthreads();
 
-	//for (j = 0; j < c_num*length; j++)
+	
 	{
 			m = (j - j%length) / length;
 
@@ -249,44 +249,35 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 
 }
 
-double  free_space(const int XDIM, const int c_num, const int L, const float * b_points, const int level)
+float  proximity(const int XDIM, const int c_num, const int L, const float * s, const int level)
 {
 	int cilium_p = 0;
-	//int cilium_m = 0;
-	double space(0.);
+	int cilium_m = 0;
+	float prox(0.);
 
 	cilium_p = (0 + level) * L;
-	//cilium_m = (c_num - level) * L;
+	cilium_m = (c_num - level) * L;
 
-	/*for (int i = 0; i < L; i++)
-	{
-		space += 1. 
-			* (b_points[5 * (cilium_p + i) + 0] - (b_points[5 * (cilium_m + i) + 0] - XDIM))
-			* (i * 1. / L) 
-			/ (L * (b_points[5 * (cilium_p)+0] - (b_points[5 * (cilium_m)+0] - XDIM)));
-	}*/
+	if(s[2 * (cilium_m + (L - 1)) + 0] > XDIM/2) prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0] - XDIM));
+	else prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0]));
 
-	space += 1.* (b_points[5 * (cilium_p + (L - 1)) + 0] - b_points[5 * (0 + (L - 1)) + 0]);
-
-	return space;
+	return prox;
 
 }
 
-double  impedence(const int XDIM, const int c_num, const int L, const float * b_points, const int level)
+double  height(const int c_num, const int L, const float * s, const int level)
 {
 	int cilium_p = 0;
-	//int cilium_m = 0;
-	double imp(0.);
+	int cilium_m = 0;
+	double ht(0.);
 
 	cilium_p = (0 + level) * L;
-	//cilium_m = (c_num - level) * L;
+	cilium_m = (c_num - level) * L;
 
 	
-	imp += 1.* b_points[5 * (cilium_p + (L - 1)) + 1];
+	ht = 0.5 * (s[2 * (cilium_p + (L - 1)) + 1] + s[2 * (cilium_m + (L - 1)) + 1]);
 	
-
-
-	return imp;
+	return ht;
 
 }
 
@@ -338,7 +329,7 @@ int main(int argc, char * argv[])
 	ITERATIONS = T*I_pow; 
 	INTERVAL = ITERATIONS / P_num;
 
-	if (XDIM <= 2 * LENGTH)
+	if (XDIM < 2 * LENGTH)
 	{
 		cout << "not enough cilia in simulation! cilia spacing of " << c_space << "requires at least " << 2 * LENGTH / c_space << " cilia" << endl;
 
@@ -373,9 +364,6 @@ int main(int argc, char * argv[])
 	//int phase(0);
 	int p_step = T * c_fraction / c_num;
 
-	
-	//double offset = 0.;
-
 	float * lasts;
 	lasts = new float[2 * c_num * 9600];
 
@@ -383,10 +371,6 @@ int main(int argc, char * argv[])
 	boundary = new float[5 * c_num * 9600];
 
 	int Np = 96 * c_num;
-	//float * b_points;
-
-	//b_points = new float[5 * Np];
-
 	
 	const int size = XDIM*YDIM;
 
@@ -436,6 +420,10 @@ int main(int argc, char * argv[])
 	double * Q;
 	cudaMallocHost(&Q, sizeof(double));
 	Q[0] = 0.;
+
+	double ht = 0.;
+	double prox = 0.;
+	bool imp_done = 0;
 	
 
 /*
@@ -683,7 +671,7 @@ int main(int argc, char * argv[])
 
 	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "_" + to_string_3(Re) + "_" + to_string_3(T_num) + "x" + to_string_3(T_pow) + "-flux.dat";
 
-	string fspace = output_data + "/Flux/" + to_string(c_space) + "-free_space.dat";
+	string impd = output_data + "/Flux/" + to_string(c_space) + "-impedence.dat";
 
 	string parameters = raw_data + "/SimLog.txt";
 
@@ -890,11 +878,11 @@ int main(int argc, char * argv[])
 
 	for (it = 0; it < ITERATIONS; it++)
 	{
-	
+
 		//--------------------------CILIA BEAT DEFINITION-------------------------
 
 		cudaEventCreate(&cilia_done);
-		
+
 		define_filament << <gridsize3, blocksize3, 0, c_stream >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points);
 
 		{
@@ -914,29 +902,8 @@ int main(int argc, char * argv[])
 
 		cudaEventRecord(cilia_done, c_stream);
 
-		/*if (1.*it / T > 0.09 && !done1)
-			{
-				f_space_1 = free_space(XDIM, c_num, LENGTH, b_points, 1);
-				f_space_2 = free_space(XDIM, c_num, LENGTH, b_points, 2);
-				f_space_3 = free_space(XDIM, c_num, LENGTH, b_points, 3);
-				f_space_4 = free_space(XDIM, c_num, LENGTH, b_points, 4);
-				f_space_5 = free_space(XDIM, c_num, LENGTH, b_points, 5);
-
-				imp_1 = impedence(XDIM, c_num, LENGTH, b_points, 1);
-				imp_2 = impedence(XDIM, c_num, LENGTH, b_points, 2);
-				imp_3 = impedence(XDIM, c_num, LENGTH, b_points, 3);
-				imp_4 = impedence(XDIM, c_num, LENGTH, b_points, 4);
-				imp_5 = impedence(XDIM, c_num, LENGTH, b_points, 5);
-
-				fsD.open(fspace.c_str(), ofstream::app);
-
-				fsD << c_fraction *1./ c_num << "\t" << f_space_1 << "\t" << f_space_2 << "\t" << f_space_3 << "\t" << f_space_4 << "\t" << f_space_5 << "\t" << imp_1 << "\t" << imp_2 << "\t" << imp_3 << "\t" << imp_4 << "\t" << imp_5 << endl;
-
-				fsD.close();
-
-				done1 = 1;
-			}*/
-		//---------------------------IMMERSED BOUNDARY LATTICE BOLTZMANN STEPS-------------------
+		
+			//---------------------------IMMERSED BOUNDARY LATTICE BOLTZMANN STEPS-------------------
 
 		cudaEventCreate(&fluid_done);
 
@@ -972,7 +939,7 @@ int main(int argc, char * argv[])
 
 		}
 
-		
+
 		macro << <gridsize, blocksize, 0, f_stream >> > (d_f, d_u, d_rho, XDIM, YDIM);											//MACRO STEP
 
 		{
@@ -983,6 +950,35 @@ int main(int argc, char * argv[])
 		}
 
 		cudaStreamWaitEvent(f_stream, cilia_done, 0);
+
+
+
+		//--------------------------IMPEDENCE CALCULATION----------------------
+		cudaEventSynchronize(cilia_done);
+
+		
+		
+
+		if (1.*it / T >= 0.11 && !imp_done)
+		{
+
+			cudaStatus = cudaMemcpy(s, d_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
+			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of s failed!\n"); }
+
+
+			fsD.open(impd.c_str(), ofstream::app);
+
+			prox = proximity(XDIM, c_num, LENGTH, s, 1);
+			ht = height(c_num, LENGTH, s, 1);
+
+			fsD << c_fraction *1. / c_num << "\t" << prox*x_scale << "\t" << ht*x_scale << endl;
+
+			fsD.close();
+
+			imp_done = 1;
+		}
+		//---------------------------------------------------------------------
+		
 		cudaEventDestroy(cilia_done);
 
 		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
