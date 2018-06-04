@@ -424,6 +424,7 @@ int main(int argc, char * argv[])
 	double ht = 0.;
 	double prox = 0.;
 	bool imp_done = 0;
+	int n = 0;
 	
 
 /*
@@ -968,10 +969,17 @@ int main(int argc, char * argv[])
 
 			fsD.open(impd.c_str(), ofstream::app);
 
-			prox = proximity(XDIM, c_num, LENGTH, s, 1);
-			ht = height(c_num, LENGTH, s, 1);
+			fsD << c_fraction *1. / c_num;
 
-			fsD << c_fraction *1. / c_num << "\t" << prox*x_scale << "\t" << ht*x_scale << endl;
+			for (n = 1; n <= 5; n++)
+			{
+				prox = proximity(XDIM, c_num, LENGTH, s, n);
+				ht = height(c_num, LENGTH, s, n);
+
+				fsD << "\t" << prox*x_scale << "\t" << ht*x_scale;
+			}
+
+			fsD << endl;
 
 			fsD.close();
 
