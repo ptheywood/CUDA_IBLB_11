@@ -336,8 +336,6 @@ int main(int argc, char * argv[])
 		return 1;
 	}
 
-	const double centre[2] = { XDIM / 2., 0. };
-
 	double dx = 1. / LENGTH;
 	double dt = 1. / (T);
 	double  SPEED = 0.8*1000/T;
@@ -465,29 +463,61 @@ int main(int argc, char * argv[])
 
 	u = new double[2 * size];
 
-	double * rho;							//DENSITY
+	double * rho;							//TOTAL DENSITY
 
 	rho = new double[size];
 
-	double * f0;							//EQUILIBRIUM DISTRIBUTION FUNCTION
+	double * rho_P;							//PCL DENSITY
 
-	f0 = new double[9 * size];
+	rho_P = new double[size];
 
-	double * f;								//DISTRIBUTION FUNCTION
+	double * rho_M;							//MUCUS DENSITY
 
-	f = new double[9 * size];
+	rho_M = new double[size];
 
-	double * f1;							//POST COLLISION DISTRIBUTION FUNCTION
+	double * f0_P;							//PCL EQUILIBRIUM DISTRIBUTION FUNCTION
 
-	f1 = new double[9 * size];
+	f0_P = new double[9 * size];
+
+	double * f0_M;							//MUCUS EQUILIBRIUM DISTRIBUTION FUNCTION
+
+	f0_M = new double[9 * size];
+
+	double * f_P;							//PCL DISTRIBUTION FUNCTION
+
+	f_P = new double[9 * size];
+
+	double * f_M;							//MUCUS DISTRIBUTION FUNCTION
+
+	f_M = new double[9 * size];
+
+	double * f1_P;							//PCL POST COLLISION DISTRIBUTION FUNCTION
+
+	f1_P = new double[9 * size];
+
+	double * f1_M;							//MUCUS POST COLLISION DISTRIBUTION FUNCTION
+
+	f1_M = new double[9 * size];
 
 	double * force;							//MACROSCOPIC BODY FORCE VECTOR
 
 	force = new double[2 * size];
 
-	double * F;								//LATTICE BOLTZMANN FORCE
+	double * force_P;						//PCL MACROSCOPIC FORCE
 
-	F = new double[9 * size];
+	force_P = new double[2 * size];
+
+	double * force_M;						//MUCUS MACROSCOPIC FORCE
+
+	force_M = new double[2 * size];
+
+	double * F_P;							//PCL LATTICE BOLTZMANN FORCE
+
+	F_P = new double[9 * size];
+
+	double * F_M;							//MUCUS LATTICE BOLTZMANN FORCE
+
+	F_M = new double[9 * size];
 
 	unsigned int Ns = LENGTH * c_num;		//NUMBER OF BOUNDARY POINTS
 
@@ -516,21 +546,37 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------CREATE DEVICE VARIABLES-----------------------------
 
-	double * d_u;								//VELOCITY VECTOR
+	double * d_u;							//VELOCITY VECTOR
 
 	double * d_rho;							//DENSITY
 
-	double * d_f0;							//EQUILIBRIUM DISTRIBUTION FUNCTION
+	double * d_rho_P;						//PCL DENSITY
 
-	double * d_f;								//DISTRIBUTION FUNCTION
+	double * d_rho_M;						//MUCUS DENSITY
 
-	double * d_f1;							//POST COLLISION DISTRIBUTION FUNCTION
+	double * d_f0_P;						//PCL EQUILIBRIUM DISTRIBUTION FUNCTION
 
-	double * d_centre;
+	double * d_f0_M;						//MUCUS EQUILIBRIUM DISTRIBUTION FUNCTION
+
+	double * d_f_P;							//PCL DISTRIBUTION FUNCTION
+
+	double * d_f_M;							//MUCUS DISTRIBUTION FUNCTION
+
+	double * d_f1_P;						//POST COLLISION DISTRIBUTION FUNCTION
+
+	double * d_f1_M;						//POST COLLISION DISTRIBUTION FUNCTION
+
+	//double * d_centre;
 
 	double * d_force;
 
-	double * d_F;
+	double * d_force_P;
+
+	double * d_force_M;
+
+	double * d_F_P;
+
+	double * d_F_M;
 
 	float * d_F_s;
 
@@ -556,42 +602,82 @@ int main(int argc, char * argv[])
 	{
 		cudaStatus = cudaMalloc((void**)&d_u, 2 * size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
+			fprintf(stderr, "cudaMalloc of u failed!");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_rho, size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
+			fprintf(stderr, "cudaMalloc of rho failed!");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_f0, 9 * size * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_rho_P, size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
+			fprintf(stderr, "cudaMalloc of rho_P failed!");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_f, 9 * size * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_rho_M, size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
+			fprintf(stderr, "cudaMalloc of rho_M failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_f1, 9 * size * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_f0_P, 9 * size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed,");
+			fprintf(stderr, "cudaMalloc of f0_P failed\n");
 		}
 
+		cudaStatus = cudaMalloc((void**)&d_f0_M, 9 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc of f0_M failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_f_P, 9 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc of f_P failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_f_M, 9 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc of f_M failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_f1_P, 9 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc of f1_P failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_f1_M, 9 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc of f1_M failed\n");
+		}
+/*
 		cudaStatus = cudaMalloc((void**)&d_centre, 2 * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc failed!");
 		}
-
+*/
 		cudaStatus = cudaMalloc((void**)&d_force, 2 * size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
+			fprintf(stderr, "cudaMalloc of force failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_F, 9 * size * sizeof(double));
+		cudaStatus = cudaMalloc((void**)&d_force_P, 2 * size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
+			fprintf(stderr, "cudaMalloc of force_P failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_force_M, 2 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc of force_M failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_F_P, 9 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc F_P failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_F_M, 9 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc F_M failed\n");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_Q, sizeof(double));
@@ -605,37 +691,37 @@ int main(int argc, char * argv[])
 
 		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of F_s failed!\n");
+			fprintf(stderr, "cudaMalloc of F_s failed\n");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of s failed!\n");
+			fprintf(stderr, "cudaMalloc of s failed\n");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_u_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of u_s failed!\n");
+			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_epsilon, Ns * sizeof(int));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of epsilon failed!\n");
+			fprintf(stderr, "cudaMalloc of epsilon failed\n");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_lasts, 2 * c_num * 9600 * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of u_s failed!\n");
+			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_boundary, 5 * c_num * 9600 * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of u_s failed!\n");
+			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_b_points, 5 * Np * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of u_s failed!\n");
+			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
 
 	}
@@ -645,7 +731,7 @@ int main(int argc, char * argv[])
 	string output_data = "Data/Test/";
 
 	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
-	else output_data = "C:/Users/phq16ja/Documents/Data/";
+	//else output_data = "C:/Users/phq16ja/Documents/Data/";
 		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
 	string raw_data = output_data + "Raw/";
@@ -693,24 +779,51 @@ int main(int argc, char * argv[])
 	fsC.close();
 
 
+
 	//----------------------------------------INITIALISE ALL CELL VALUES---------------------------------------
 
 	for (j = 0; j < XDIM*YDIM; j++)
 	{
 		rho[j] = RHO_0;
+		/*if (j < size / 2)
+		{
+			rho_P[j] = 0.8;
+			rho_M[j] = 0.2;
+		}
+		else
+		{
+			rho_P[j] = 0.2;
+			rho_M[j] = 0.8;
+		}*/
+
+		rho_P[j] = 1. - 0.99*((j - j%XDIM) / XDIM) / YDIM;
+
+		rho_M[j] = 0.99*((j - j%XDIM) / XDIM) / YDIM;
+
 		u[0 * size + j] = 0.0;
 		u[1 * size + j] = 0.0;
 
 		force[0 * size + j] = 0.;
 		force[1 * size + j] = 0.;
 
+		force_P[0 * size + j] = 0.;
+		force_P[1 * size + j] = 0.;
+
+		force_M[0 * size + j] = 0.;
+		force_M[1 * size + j] = 0.;
+
 
 		for (i = 0; i < 9; i++)
 		{
-			f0[9 * j + i] = 0.;
-			f[9 * j + i] = 0.;
-			f1[9 * j + i] = 0.;
-			F[9 * j + i] = 0.;
+			f0_P[9 * j + i] = 0.;
+			f_P[9 * j + i] = 0.;
+			f1_P[9 * j + i] = 0.;
+			F_P[9 * j + i] = 0.;
+
+			f0_M[9 * j + i] = 0.;
+			f_M[9 * j + i] = 0.;
+			f1_M[9 * j + i] = 0.;
+			F_M[9 * j + i] = 0.;
 		}
 
 	}
@@ -721,42 +834,81 @@ int main(int argc, char * argv[])
 	{
 		cudaStatus = cudaMemcpy(d_u, u, 2 * size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
+			fprintf(stderr, "cudaMemcpy of u failed\n");
 		}
 
 		cudaStatus = cudaMemcpy(d_rho, rho, size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
+			fprintf(stderr, "cudaMemcpy of rho failed\n");
 		}
 
-		cudaStatus = cudaMemcpy(d_f0, f0, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_rho_P, rho_P, size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
+			fprintf(stderr, "cudaMemcpy of rho_P failed\n");
 		}
-
-		cudaStatus = cudaMemcpy(d_f, f, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_rho_M, rho_M, size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
+			fprintf(stderr, "cudaMemcpy of rho_M failed\n");
 		}
 
-		cudaStatus = cudaMemcpy(d_f1, f1, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_f0_P, f0_P, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
+			fprintf(stderr, "cudaMemcpy of f0_P failed\n");
 		}
 
+		cudaStatus = cudaMemcpy(d_f0_M, f0_M, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of f0_M failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_f_P, f_P, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of f_P failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_f_M, f_M, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of f_M failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_f1_P, f1_P, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of f1_P failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_f1_M, f1_M, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of f1_M failed\n");
+		}
+/*
 		cudaStatus = cudaMemcpy(d_centre, centre, 2 * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy failed!");
 		}
-
+*/
 		cudaStatus = cudaMemcpy(d_force, force, 2 * size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
+			fprintf(stderr, "cudaMemcpy of force failed\n");
 		}
 
-		cudaStatus = cudaMemcpy(d_F, F, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_force_P, force_P, 2 * size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
+			fprintf(stderr, "cudaMemcpy of force_P failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_force_M, force_M, 2 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of force_M failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_F_P, F_P, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of F_P failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_F_M, F_M, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of F_M failed\n");
 		}
 
 		cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
@@ -781,7 +933,9 @@ int main(int argc, char * argv[])
 
 	//------------------------------------------------------SET INITIAL DISTRIBUTION TO EQUILIBRIUM-------------------------------------------------
 
-	equilibrium << <gridsize, blocksize >> > (d_u, d_rho, d_f0, d_force, d_F, XDIM, YDIM, TAU);				//INITIAL EQUILIBRIUM SET
+	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, TAU);				//PCL INITIAL EQUILIBRIUM SET
+
+	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU);				//PCL INITIAL EQUILIBRIUM SET
 
 	{																										// Check for any errors launching the kernel
 		cudaStatus = cudaGetLastError();
@@ -789,16 +943,21 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "first equilibrium launch failed: %s\n", cudaGetErrorString(cudaStatus));
 		}
 
-		cudaStatus = cudaMemcpy(f0, d_f0, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
+		cudaStatus = cudaMemcpy(f0_P, d_f0_P, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy failed!");
 		}
 
+		cudaStatus = cudaMemcpy(f0_M, d_f0_M, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+/*
 		cudaStatus = cudaMemcpy(F, d_F, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy failed!");
 		}
-
+*/
 
 	}
 
@@ -806,13 +965,20 @@ int main(int argc, char * argv[])
 	{
 		for (i = 0; i < 9; i++)
 		{
-			f[9 * j + i] = f0[9 * j + i];
+			f_P[9 * j + i] = f0_P[9 * j + i];
+
+			f_M[9 * j + i] = f0_M[9 * j + i];
 		}
 	}
 
-	cudaStatus = cudaMemcpy(d_f, f, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+	cudaStatus = cudaMemcpy(d_f_P, f_P, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
 	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy of f failed!\n");
+		fprintf(stderr, "second cudaMemcpy of f_P failed\n");
+	}
+
+	cudaStatus = cudaMemcpy(d_f_M, f_M, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "second cudaMemcpy of f_M failed\n");
 	}
 
 
@@ -911,25 +1077,43 @@ int main(int argc, char * argv[])
 		cudaEventDestroy(Q_done);
 
 
-		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho, d_f0, d_force, d_F, XDIM, YDIM, TAU);					//EQUILIBRIUM STEP
+		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, TAU);					//PCL EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
 			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "equilibrium launch failed: %s\n", cudaGetErrorString(cudaStatus));
+				fprintf(stderr, "PCL equilibrium launch failed: %s\n", cudaGetErrorString(cudaStatus));
 			}
 		}
 
-		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0, d_f, d_f1, d_F, TAU, TAU2, XDIM, YDIM, it);					//COLLISION STEP
+		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU);					//MUCUS EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
 			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "collision launch failed: %s\n", cudaGetErrorString(cudaStatus));
+				fprintf(stderr, "mucus equilibrium launch failed: %s\n", cudaGetErrorString(cudaStatus));
 			}
 		}
 
-		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1, d_f, XDIM, YDIM);												//STREAMING STEP
+		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU, TAU2, XDIM, YDIM, it);					//PCL COLLISION STEP
+
+		{																										// Check for any errors launching the kernel
+			cudaStatus = cudaGetLastError();
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "PCL collision launch failed: %s\n", cudaGetErrorString(cudaStatus));
+			}
+		}
+
+		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU, TAU2, XDIM, YDIM, it);					// MUCUS COLLISION STEP
+
+		{																										// Check for any errors launching the kernel
+			cudaStatus = cudaGetLastError();
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "mucus collision launch failed: %s\n", cudaGetErrorString(cudaStatus));
+			}
+		}
+
+		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_P, d_f_P, XDIM, YDIM);												//PCL STREAMING STEP
 
 		{																											// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -939,8 +1123,18 @@ int main(int argc, char * argv[])
 
 		}
 
+		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_M, d_f_M, XDIM, YDIM);												//MUCUS STREAMING STEP
 
-		macro << <gridsize, blocksize, 0, f_stream >> > (d_f, d_u, d_rho, XDIM, YDIM);											//MACRO STEP
+		{																											
+			cudaStatus = cudaGetLastError();
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "mucus collision launch failed: %s\n", cudaGetErrorString(cudaStatus));
+			}
+
+		}
+
+
+		macro << <gridsize, blocksize, 0, f_stream >> > (d_f_P, d_f_M, d_F_P, d_F_M, d_u, d_rho_P, d_rho_M, d_rho, XDIM, YDIM);			//MACRO STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -951,13 +1145,8 @@ int main(int argc, char * argv[])
 
 		cudaStreamWaitEvent(f_stream, cilia_done, 0);
 
-
-
 		//--------------------------IMPEDENCE CALCULATION----------------------
 		cudaEventSynchronize(cilia_done);
-
-		
-		
 
 		if (1.*it / T >= 0.11 && !imp_done)
 		{
@@ -990,15 +1179,28 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		spread << <gridsize, blocksize, 0, f_stream >> > (d_rho, d_u, d_f, Ns, d_u_s, d_F_s, d_force, d_s, XDIM, d_Q, d_epsilon);	//IB SPREADING STEP
-
-		cudaEventRecord(fluid_done, f_stream);
-		
+		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "spread launch failed: %s\n", cudaGetErrorString(cudaStatus));
+
+				cout << it << endl;
+				system("pause");
+				return 1;
+			}
+		}
+
+		cudaEventRecord(fluid_done, f_stream);
+
+		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, XDIM, YDIM);
+		
+
+		{
+			cudaStatus = cudaGetLastError();
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "forces launch failed: %s\n", cudaGetErrorString(cudaStatus));
 				
 				cout << it << endl;
 				system("pause");
@@ -1027,7 +1229,17 @@ int main(int argc, char * argv[])
 
 				cudaStatus = cudaMemcpy(rho, d_rho, size * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "cudaMemcpy of rho failed!\n");
+					fprintf(stderr, "second cudaMemcpy of rho failed!\n");
+				}
+
+				cudaStatus = cudaMemcpy(rho_P, d_rho_P, size * sizeof(double), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) {
+					fprintf(stderr, "second cudaMemcpy of rho_P failed!\n");
+				}
+
+				cudaStatus = cudaMemcpy(rho_M, d_rho_M, size * sizeof(double), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) {
+					fprintf(stderr, "second cudaMemcpy of rho_M failed!\n");
 				}
 
 				cudaStatus = cudaMemcpy(u, d_u, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
@@ -1044,9 +1256,11 @@ int main(int argc, char * argv[])
 					int x = j%XDIM;
 					int y = (j - j%XDIM) / XDIM;
 
+					float psi = (rho_M[j] - rho_P[j]) / (rho_P[j] + rho_M[j]);
+
 					double ab = sqrt(u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << ab*s_scale << "\t" << rho[j] << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << ab*s_scale << "\t" << rho[j] << "\t" << psi << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;

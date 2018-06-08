@@ -9,6 +9,7 @@
 
 
 __device__ const double C_S = 0.57735;
+__device__ const double G_PM = 0.2;
 //__device__ const double TAU2 = 0.505556;
 //__device__ const double RHO_0 = 1.;
 
@@ -26,6 +27,16 @@ __device__ const double t[9] =					//WEIGHT VALUES
 	1. / 36, 1. / 36, 1. / 36, 1. / 36
 };
 
+__device__ void DoubleAtomicAdd(double* address, double val)
+{
+	unsigned long long int* address_as_ull = (unsigned long long int*)address;
+	unsigned long long int old = *address_as_ull, assumed;
+	do
+	{
+		assumed = old;
+		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+	} while (assumed != old);
+}
 
 __global__ void equilibrium(const double * u, const double * rho, double * f0, const double * force, double * F, int XDIM, int YDIM, double TAU)
 {
@@ -49,9 +60,13 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1])*(u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (2 * C_S*C_S*C_S*C_S)
 				- (u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]) / (2 * C_S*C_S));
 			
-
+/*
 			vec[0] = (c_l[i * 2 + 0] - u[0 * size + j]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 0];
 			vec[1] = (c_l[i * 2 + 1] - u[1 * size + j]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 1];
+*/
+			vec[0] = c_l[i * 2 + 0] / (C_S*C_S) + ((c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j])*c_l[i * 2 + 0] - C_S*C_S*u[0 * size + j]) / (C_S*C_S*C_S*C_S);
+			vec[1] = c_l[i * 2 + 1] / (C_S*C_S) + ((c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j])*c_l[i * 2 + 1] - C_S*C_S*u[1 * size + j]) / (C_S*C_S*C_S*C_S);
+
 
 			F[9 * j + i] = (1. - 1. / (2. * TAU)) * t[i] * (vec[0] * force[size * 0 + j] + vec[1] * force[size * 1 + j]);
 			
@@ -372,7 +387,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 
 }
 
-__global__ void macro(const double * f, double * u, double * rho, int XDIM, int YDIM)
+__global__ void macro(const double * f_P, const double * f_M, const double * force_P, const double * force_M, double * u, double * rho_P, double * rho_M, double * rho, int XDIM, int YDIM)
 {
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -385,27 +400,210 @@ __global__ void macro(const double * f, double * u, double * rho, int XDIM, int 
 	{
 		j = threadnum;
 
-		rho[j] = 0;
+		rho_P[j] = 0.;
+		rho_M[j] = 0.;
+		rho[j] = 0.;
 
-		u[0 * size + j] = 0;
-		u[1 * size + j] = 0;
+		u[0 * size + j] = 0.;
+		u[1 * size + j] = 0.;
 
-		momentum[0] = 0;
-		momentum[1] = 0;
+		momentum[0] = 0.;
+		momentum[1] = 0.;
 
 		for (i = 0; i < 9; i++)
 		{
-			rho[j] += f[9 * j + i];
+			rho_P[j] += f_P[9 * j + i];
+			rho_M[j] += f_M[9 * j + i];
+			
 
-			momentum[0] += c_l[i * 2 + 0] * f[9 * j + i];
-			momentum[1] += c_l[i * 2 + 1] * f[9 * j + i];
+			momentum[0] += c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
+			momentum[1] += c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
 		}
 
-		u[0 * size + j] = momentum[0] / rho[j];
-		u[1 * size + j] = momentum[1] / rho[j];
+		__syncthreads();
+
+		rho[j] = rho_P[j] + rho_M[j];
+
+		u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
+		u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
 
 		
 	}
 
 	__syncthreads();
+}
+
+__global__ void forces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, const double * force, double * force_P, double * force_M, double * u, double * Q, int XDIM, int YDIM)
+{
+	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
+
+	unsigned int i(0), j(0);
+
+	const int size = XDIM*YDIM;
+
+	int next(0);
+
+	j = threadnum;
+
+	//force_P[0 * size + j] = 0.;
+	//force_P[1 * size + j] = 0.;
+	//force_M[0 * size + j] = 0.;
+	//force_M[1 * size + j] = 0.;
+
+	double temp[4];
+
+	temp[0] = 0.;
+	temp[1] = 0.;
+	temp[2] = 0.;
+	temp[3] = 0.;
+
+	double momentum[2];
+	double spd(0.);
+
+	bool up(0), down(0), left(0), right(0), wall(0), done(0);
+
+	int x = j%XDIM;
+	int y = (j - j%XDIM) / XDIM;
+
+	if (y == YDIM - 1) up = 1;
+	if (y == 0) down = 1;
+	if (x == 0) left = 1;
+	if (x == XDIM - 1) right = 1;
+
+	for (i = 0; i < 9; i++)
+	{
+		wall = 0;
+		done = 0;
+
+		if (down || up || left || right)
+		{
+			switch (i)
+			{
+			case 0: break;
+
+			case 1:
+				if (right) { next = j - 1*(XDIM - 1); done = 1; break; }
+				break;
+			case 2:
+				if (up) { wall = 1; done = 1; break; }
+				break;
+			case 3:
+				if (left) { next = j + 1*(XDIM - 1); done = 1; break; }
+				break;
+			case 4:
+				if (down) { wall = 1; done = 1; break; }
+				break;
+			case 5:
+
+				if (up)
+				{
+					wall = 1;
+					done = 1;
+					break;
+				}
+				else if (right)
+				{
+					next = j + 1;
+					done = 1;
+					break;
+				}
+
+				break;
+			case 6:
+
+				if (up)
+				{
+					wall = 1;
+					done = 1;
+					break;
+				}
+				else if (left)
+				{
+					next = j + (2 * XDIM - 1);
+					done = 1;
+					break;
+				}
+
+				break;
+			case 7:
+
+				if (down)
+				{
+					wall = 1;
+					done = 1;
+					break;
+				}
+				else if (left)
+				{
+					next = j - 1;
+					done = 1;
+					break;
+				}
+
+				break;
+			case 8:
+
+				if (down)
+				{
+					wall = 1;
+					done = 1;
+					break;
+				}
+				else if (right)
+				{
+					next = j - (2 * XDIM - 1);
+					done = 1;
+					break;
+				}
+
+				break;
+			}
+		}
+		
+		if(!done)
+		{
+			next = j + c_l[i * 2 + 0] + XDIM*c_l[i * 2 + 1];
+		}
+
+		if (!wall)
+		{
+			temp[0] += t[i] * rho_M[next] * c_l[i * 2 + 0];
+			temp[1] += t[i] * rho_M[next] * c_l[i * 2 + 1];
+			temp[2] += t[i] * rho_P[next] * c_l[i * 2 + 0];
+			temp[3] += t[i] * rho_P[next] * c_l[i * 2 + 1];
+		}
+	}
+
+	force_P[0 * size + j] = -1. * rho_P[j] * G_PM * temp[0];// +(rho_P[j] / rho[j]) * force[0 * size + j];
+	force_P[1 * size + j] = -1. * rho_P[j] * G_PM * temp[1];// +(rho_P[j] / rho[j]) * force[1 * size + j];
+	force_M[0 * size + j] = -1. * rho_M[j] * G_PM * temp[2];// +(rho_M[j] / rho[j]) * force[0 * size + j];
+	force_M[1 * size + j] = -1. * rho_M[j] * G_PM * temp[3];// +(rho_M[j] / rho[j]) * force[1 * size + j];
+
+	__syncthreads();
+
+	u[0 * size + j] = 0;
+	u[1 * size + j] = 0;
+
+	momentum[0] = 0;
+	momentum[1] = 0;
+
+	for (i = 0; i < 9; i++)
+	{
+		momentum[0] += c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
+		momentum[1] += c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
+	}
+
+	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
+	u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
+
+	__syncthreads();
+
+	if (j%XDIM == XDIM - 5)
+	{
+		spd = u[0 * size + j] / YDIM;
+		DoubleAtomicAdd(Q, spd);
+	}
+
+	__syncthreads();
+
 }

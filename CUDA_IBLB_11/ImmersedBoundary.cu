@@ -80,16 +80,16 @@ __device__ float d_delta(const float & xs, const float & ys, const int & x, cons
 	return delta;
 }
 
-__device__ void DoubleAtomicAdd(double* address, double val)
-{
-	unsigned long long int* address_as_ull = (unsigned long long int*)address;
-	unsigned long long int old = *address_as_ull, assumed;
-	do
-	{
-		assumed = old;
-		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-	} while (assumed != old);
-}
+//__device__ void DoubleAtomicAdd(double* address, double val)
+//{
+//	unsigned long long int* address_as_ull = (unsigned long long int*)address;
+//	unsigned long long int old = *address_as_ull, assumed;
+//	do
+//	{
+//		assumed = old;
+//		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+//	} while (assumed != old);
+//}
 
 __global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM, const int YDIM)
 {
@@ -135,7 +135,7 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 // rho[SIZE]: fluid density	u[2*size]: fluid velocity	f[9*size]: density function		Ns: No. of cilia boundary points	u_s[2*Ns]: cilia velocity	F_s[2*Ns]: cilia force	
 // force[2*size]: fluid force	s[2*Ns]: cilia position	XDIM: x dimension	Q: Net flow		epsilon[Ns]: boundary point switching
 
-__global__ void spread(const double * rho, double * u, const double * f, const int Ns, const float * u_s, const float * F_s, double * force, const float * s, const int XDIM, double * Q, const int * epsilon)
+__global__ void spread(const int Ns, const float * u_s, const float * F_s, double * force, const float * s, const int XDIM, const int YDIM, const int * epsilon)
 {
 	int j(0), k(0), x(0), y(0);
 
@@ -143,7 +143,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	float xs(0.), ys(0.), del(0.);
 
-	int size = 192 * XDIM;
+	int size = YDIM * XDIM;
 
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
@@ -172,8 +172,6 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 
 	x = j%XDIM;
 	y = (j - j%XDIM) / XDIM;
-
-	double temp;
 
 	for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
 	{
@@ -245,7 +243,7 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 	}*/
 
 	/////////////////////////////////////////////////////////////////END////////////////////////////////////////////////////////////
-
+/*
 	u[0 * size + j] = (c_l[0 * 2 + 0] * f[9 * j + 0] + c_l[1 * 2 + 0] * f[9 * j + 1] + c_l[2 * 2 + 0] * f[9 * j + 2] +
 			c_l[3 * 2 + 0] * f[9 * j + 3] + c_l[4 * 2 + 0] * f[9 * j + 4] + c_l[5 * 2 + 0] * f[9 * j + 5] + 
 			c_l[6 * 2 + 0] * f[9 * j + 6] + c_l[7 * 2 + 0] * f[9 * j + 7] + c_l[8 * 2 + 0] * f[9 * j + 8] + 0.5*force[0 * size + j]) / rho[j];
@@ -253,17 +251,10 @@ __global__ void spread(const double * rho, double * u, const double * f, const i
 	u[1 * size + j] = (c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[1 * 2 + 1] * f[9 * j + 1] + c_l[2 * 2 + 1] * f[9 * j + 2] +
 			c_l[3 * 2 + 1] * f[9 * j + 3] + c_l[4 * 2 + 1] * f[9 * j + 4] + c_l[5 * 2 + 1] * f[9 * j + 5] +
 			c_l[6 * 2 + 1] * f[9 * j + 6] + c_l[7 * 2 + 1] * f[9 * j + 7] + c_l[8 * 2 + 1] * f[9 * j + 8] + 0.5*force[1 * size + j]) / rho[j];
-
+*/
 	__syncthreads();
 
-	if (x == XDIM - 5)
-	{
-		temp = u[0 * size + j] / 192.;
-		DoubleAtomicAdd(Q, temp);
-
-	}
-
-	__syncthreads();
+	
 }
 
 
