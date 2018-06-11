@@ -297,7 +297,7 @@ int main(int argc, char * argv[])
 	unsigned int c_num = 6;
 	double Re = 1.0;
 	unsigned int XDIM = 288;
-	unsigned int YDIM = 192;
+	unsigned int YDIM = 288;
 	unsigned int T = 100000;
 	unsigned int T_pow = 1;
 	float T_num = 1.0;
@@ -794,11 +794,21 @@ int main(int argc, char * argv[])
 		{
 			rho_P[j] = 0.2;
 			rho_M[j] = 0.8;
-		}*/
+		}
+*/
+		//rho_P[j] = 1. - 0.99*((j - j%XDIM) / XDIM) / YDIM;
 
-		rho_P[j] = 1. - 0.99*((j - j%XDIM) / XDIM) / YDIM;
+		//rho_M[j] = 0.99 * ((j - j%XDIM) / XDIM) / YDIM;
 
-		rho_M[j] = 0.99*((j - j%XDIM) / XDIM) / YDIM;
+		float centre[2] = { XDIM / 2. + 5, YDIM / 2. + 5};
+
+		if ((j%XDIM - centre[0])*(j%XDIM - centre[0]) + (((j - j%XDIM) / XDIM) - centre[1])*(((j - j%XDIM) / XDIM) - centre[1]) < YDIM * 0.33 * YDIM * 0.33)
+		{
+			rho_M[j] = 1.0;
+			
+		}
+		
+		rho_P[j] = 1. - rho_M[j];
 
 		u[0 * size + j] = 0.0;
 		u[1 * size + j] = 0.0;
@@ -1192,11 +1202,9 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		cudaEventRecord(fluid_done, f_stream);
-
 		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, XDIM, YDIM);
 		
-
+		cudaEventRecord(fluid_done, f_stream);
 		{
 			cudaStatus = cudaGetLastError();
 			if (cudaStatus != cudaSuccess) {
