@@ -57,7 +57,7 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 			
 			f0[9 * j + i] = rho[j] * t[i] * (1
 				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (C_S*C_S)
-				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1])*(u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (2 * C_S*C_S*C_S*C_S)
+				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) * (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (2 * C_S*C_S*C_S*C_S)
 				- (u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]) / (2 * C_S*C_S));
 			
 /*
@@ -433,10 +433,12 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	if (x == 0) left = 1;
 	if (x == XDIM - 1) right = 1;
 
+
 	for (i = 0; i < 9; i++)
 	{
 		wall = 0;
 		done = 0;
+		next = 0;
 
 		if (down || up || left || right)
 		{
@@ -445,16 +447,16 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 			case 0: break;
 
 			case 1:
-				if (right) { next = j - 1*(XDIM - 1); done = 1; break; }
+				if (right)	{ next = j - 1*(XDIM - 1); done = 1;}
 				break;
 			case 2:
-				if (up) { wall = 1; done = 1; break; }
+				if (up)		{ wall = 1; done = 1;}
 				break;
 			case 3:
-				if (left) { next = j + 1*(XDIM - 1); done = 1; break; }
+				if (left)	{ next = j + 1*(XDIM - 1); done = 1;}
 				break;
 			case 4:
-				if (down) { wall = 1; done = 1; break; }
+				if (down)	{ wall = 1; done = 1;}
 				break;
 			case 5:
 
@@ -462,13 +464,11 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				{
 					wall = 1;
 					done = 1;
-					break;
 				}
 				else if (right)
 				{
 					next = j + 1;
 					done = 1;
-					break;
 				}
 
 				break;
@@ -478,13 +478,11 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				{
 					wall = 1;
 					done = 1;
-					break;
 				}
 				else if (left)
 				{
 					next = j + (2 * XDIM - 1);
 					done = 1;
-					break;
 				}
 
 				break;
@@ -494,13 +492,11 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				{
 					wall = 1;
 					done = 1;
-					break;
 				}
 				else if (left)
 				{
 					next = j - 1;
 					done = 1;
-					break;
 				}
 
 				break;
@@ -510,13 +506,11 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				{
 					wall = 1;
 					done = 1;
-					break;
 				}
 				else if (right)
 				{
 					next = j - 2 * XDIM + 1;
 					done = 1;
-					break;
 				}
 
 				break;
@@ -525,16 +519,19 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 		
 		if(!done)
 		{
-			next = j + c_l[i * 2 + 0] + XDIM*c_l[i * 2 + 1];
+			next = j + c_l[i * 2 + 0] + XDIM*c_l[i * 2 + 1];		//checked, all correct
 		}
 
 		if (!wall)
 		{
-			temp[0] += t[i] * rho_M[next] * c_l[i * 2 + 0];
-			temp[1] += t[i] * rho_M[next] * c_l[i * 2 + 1];
-			temp[2] += t[i] * rho_P[next] * c_l[i * 2 + 0];
-			temp[3] += t[i] * rho_P[next] * c_l[i * 2 + 1];
+			temp[0] += 1.* t[i] * rho_M[next] * c_l[i * 2 + 0];
+			temp[1] += 1.* t[i] * rho_M[next] * c_l[i * 2 + 1];
+			temp[2] += 1.* t[i] * rho_P[next] * c_l[i * 2 + 0];
+			temp[3] += 1.* t[i] * rho_P[next] * c_l[i * 2 + 1];
 		}
+
+		//if (j == XDIM-1) printf("wall? %d -> %d \n", i, wall);
+			
 	}
 
 	force_P[0 * size + j] = -1. * rho_P[j] * G_PM * temp[0];// +(rho_P[j] / rho[j]) * force[0 * size + j];
@@ -550,13 +547,15 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	momentum[0] = 0;
 	momentum[1] = 0;
 
+	
+
 	for (i = 0; i < 9; i++)
 	{
 		momentum[0] += c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
 		momentum[1] += c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
 	}
 
-	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
+	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];			//all tested and correct
 	u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
 
 	__syncthreads();

@@ -787,26 +787,36 @@ int main(int argc, char * argv[])
 		rho[j] = RHO_0;
 		/*if (j < size / 2)
 		{
-			rho_P[j] = 0.8;
-			rho_M[j] = 0.2;
+			rho_P[j] = 0.5;
+			rho_M[j] = 0.5;
 		}
 		else
 		{
-			rho_P[j] = 0.2;
-			rho_M[j] = 0.8;
+			rho_P[j] = 1.;
+			rho_M[j] = 0.;
 		}
 */
 		//rho_P[j] = 1. - 0.99*((j - j%XDIM) / XDIM) / YDIM;
 
 		//rho_M[j] = 0.99 * ((j - j%XDIM) / XDIM) / YDIM;
 
-		float centre[2] = { XDIM / 2. + 5, YDIM / 2. + 5};
+		double centre1[2] = { XDIM / 2., YDIM / 2. };
+		//double centre2[2] = { XDIM * 2. / 3., YDIM * 2. / 3. };
 
-		if ((j%XDIM - centre[0])*(j%XDIM - centre[0]) + (((j - j%XDIM) / XDIM) - centre[1])*(((j - j%XDIM) / XDIM) - centre[1]) < YDIM * 0.33 * YDIM * 0.33)
-		{
-			rho_M[j] = 1.0;
+		rho_M[j] = 0.0;
+
+		//if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * 0.2 * YDIM * 0.2)
+		//{
+		//	rho_M[j] = 0.5;
 			
+		//}
+
+		if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * 0.166 * YDIM * 0.166)
+		{
+			rho_M[j] = 1.;
+
 		}
+		
 		
 		rho_P[j] = 1. - rho_M[j];
 
@@ -1255,6 +1265,11 @@ int main(int argc, char * argv[])
 					fprintf(stderr, "cudaMemcpy of u failed!\n");
 				}
 
+				cudaStatus = cudaMemcpy(force_M, d_force_M, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) {
+					fprintf(stderr, "cudaMemcpy of u failed!\n");
+				}
+
 				outfile = raw_data + to_string(it) + "-fluid.dat";
 
 				fsA.open(outfile.c_str());
@@ -1268,7 +1283,9 @@ int main(int argc, char * argv[])
 
 					double ab = sqrt(u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << ab*s_scale << "\t" << rho[j] << "\t" << psi << endl;
+					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
+
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << ab*s_scale << "\t" << rho[j] << "\t" << psi << "\t" << force_M[0*size + j] << "\t" << force_M[1*size + j] << "\t" << abforce << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
