@@ -258,7 +258,8 @@ float  proximity(const int XDIM, const int c_num, const int L, const float * s, 
 	cilium_p = (0 + level) * L;
 	cilium_m = (c_num - level) * L;
 
-	if(s[2 * (cilium_m + (L - 1)) + 0] > XDIM/2) prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0] - XDIM));
+	if (s[2 * (cilium_m + (L - 1)) + 0] > XDIM/2 ) prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0] - XDIM));
+	else if (s[2 * (cilium_p + (L - 1)) + 0] > XDIM / 2) prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - XDIM - s[2 * (cilium_m + (L - 1)) + 0]);
 	else prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0]));
 
 	return prox;
@@ -331,7 +332,7 @@ int main(int argc, char * argv[])
 
 	if (XDIM < 2 * LENGTH)
 	{
-		cout << "not enough cilia in simulation! cilia spacing of " << c_space << "requires at least " << 2 * LENGTH / c_space << " cilia" << endl;
+		cout << "not enough cilia in simulation! Cilia spacing of " << c_space << " requires at least " << 2 * LENGTH / c_space << " cilia" << endl;
 
 		return 1;
 	}
