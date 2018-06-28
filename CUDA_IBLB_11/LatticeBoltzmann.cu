@@ -68,7 +68,7 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 			vec[1] = c_l[i * 2 + 1] / (C_S*C_S) + ( (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j])*c_l[i * 2 + 1] - C_S*C_S*u[1 * size + j] ) / (C_S*C_S*C_S*C_S);
 
 
-			F[9 * j + i] = (1. - 1. / (2. * TAU)) * t[i] * (vec[0] * force[size * 0 + j] + vec[1] * force[size * 1 + j]);
+			F[9 * j + i] = (1. - 1. / (2. * TAU)) * t[i] * (vec[0] * force[0 * size + j] + vec[1] * force[1 * size + j]);
 			
 		}
 	}
@@ -134,7 +134,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 7] = f[9 * j + 7] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 7];
+			f1[9 * j + 7] = f[9 * j + 7] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 7];
 
 			f_plus = (f[9 * j + 6] + f[9 * j + 8]) / 2.;
 			f_minus = (f[9 * j + 6] - f[9 * j + 8]) / 2.;
@@ -146,7 +146,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 8];
+			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 8];
 
 		}
 
@@ -192,7 +192,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 
 	unsigned int i(0), j(0), k(0);
 	unsigned int jstream(0);
-	bool back(0), thru(0), done(0), slip(0);
+	bool back(0), thru(0), done(0), slip(0), thrp(0);
 	bool up(0), down(0), left(0), right(0);
 
 	int x(0), y(0);
@@ -224,6 +224,9 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 			thru = 0;
 			done = 0;
 			slip = 0;
+			thrp = 0;
+			k = i;
+
 
 			//---------------------------------------------------MID GRID NON-SLIP BOUNDARY------------------------------
 
@@ -237,19 +240,38 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 					if (right) { thru = 1; break; }
 					break;
 				case 2:
-					if (up) { slip = 1; break; }
+					if (up) 
+					{ 
+						//slip = 1; 
+						thrp = 1;
+						break; 
+					}
 					break;
+
 				case 3:
 					if (left) { thru = 1; break; }
 					break;
+
 				case 4:
-					if (down) { back = 1; break; }
+					if (down) 
+					{ 
+						//back = 1; 
+						thrp = 1;
+						break; 
+					}
 					break;
+
 				case 5:
-					
-					if (up)
+
+					if (up && right)
 					{
-						slip = 1;
+						jstream = 0;
+						done = 1;
+					}
+					else if (up)
+					{
+						//slip = 1;
+						thrp = 1;
 						break;
 					}
 					else if (right)
@@ -259,11 +281,18 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 					}
 
 					break;
+
 				case 6:
-					
-					if (up)
+
+					if (up && left)
 					{
-						slip = 1;
+						jstream = XDIM - 1;
+						done = 1;
+					}
+					else if (up)
+					{
+						//slip = 1;
+						thrp = 1;
 						break;
 					}
 					else if (left)
@@ -273,11 +302,18 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 					}
 
 					break;
+
 				case 7:
 					
-					if (down)
+					if (down && left)
 					{
-						back = 1;
+						jstream = XDIM*YDIM - 1;
+						done = 1;
+					}
+					else if (down)
+					{
+						//back = 1;
+						thrp = 1;
 						break;
 					}
 					else if (left)
@@ -289,9 +325,15 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 					break;
 				case 8:
 					
-					if (down)
+					if (down && right)
 					{
-						back = 1;
+						jstream = YDIM*XDIM - XDIM;
+						done = 1;
+					}
+					else if (down)
+					{
+						//back = 1;
+						thrp = 1;
 						break;
 					}
 					else if (right)
@@ -315,6 +357,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 				if (i == 1) k = 3;
 				if (i == 2) k = 4;
 				if (i == 3) k = 1;
+
 				if (i == 4) k = 2;
 				if (i == 5) k = 7;
 				if (i == 6) k = 8;
@@ -337,6 +380,12 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 			else if (thru && !done)
 			{
 				jstream = j - (XDIM-1)*c_l[i * 2 + 0] + XDIM*c_l[i * 2 + 1]; //THROUGH STREAM
+
+				k = i;
+			}
+			else if (thrp && !done)
+			{
+				jstream = j + c_l[i * 2 + 0] - XDIM*(YDIM - 1)*c_l[i * 2 + 1]; //THROUGH STREAM
 
 				k = i;
 			}
@@ -450,19 +499,35 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				if (right)	{ next = j - 1*(XDIM - 1); done = 1;}
 				break;
 			case 2:
-				if (up)		{ wall = 1; done = 1;}
+				if (up)		
+				{ 
+					//wall = 1; 
+					next = j - 1 * XDIM*(YDIM - 1);
+					done = 1;
+				}
 				break;
 			case 3:
 				if (left)	{ next = j + 1*(XDIM - 1); done = 1;}
 				break;
 			case 4:
-				if (down)	{ wall = 1; done = 1;}
+				if (down)	
+				{
+					//wall = 1; 
+					next = j + 1 * XDIM*(YDIM - 1);
+					done = 1;
+				}
 				break;
 			case 5:
 
-				if (up)
+				if (up && right)
 				{
-					wall = 1;
+					next = 0;
+					done = 1;
+				}
+				else if (up)
+				{
+					//wall = 1;
+					next = j - 1 * XDIM*(YDIM - 1) + 1;
 					done = 1;
 				}
 				else if (right)
@@ -474,9 +539,15 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				break;
 			case 6:
 
-				if (up)
+				if (up && left)
 				{
-					wall = 1;
+					next = XDIM - 1;
+					done = 1;
+				}
+				else if (up)
+				{
+					//wall = 1;
+					next = j - 1 * XDIM*(YDIM - 1) - 1;
 					done = 1;
 				}
 				else if (left)
@@ -488,9 +559,15 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				break;
 			case 7:
 
-				if (down)
+				if (down && left)
 				{
-					wall = 1;
+					next = size - 1;
+					done = 1;
+				}
+				else if (down)
+				{
+					//wall = 1;
+					next = j + 1 * XDIM*(YDIM - 1) - 1;
 					done = 1;
 				}
 				else if (left)
@@ -502,9 +579,15 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				break;
 			case 8:
 
-				if (down)
+				if (down && right)
 				{
-					wall = 1;
+					next = size - XDIM;
+					done = 1;
+				}
+				else if (down)
+				{
+					//wall = 1;
+					next = j + 1 * XDIM*(YDIM - 1) + 1;
 					done = 1;
 				}
 				else if (right)
@@ -534,10 +617,10 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 			
 	}
 
-	force_P[0 * size + j] = -1. * rho_P[j] * G_PM * temp[0];// +(rho_P[j] / rho[j]) * force[0 * size + j];
-	force_P[1 * size + j] = -1. * rho_P[j] * G_PM * temp[1];// +(rho_P[j] / rho[j]) * force[1 * size + j];
-	force_M[0 * size + j] = -1. * rho_M[j] * G_PM * temp[2];// +(rho_M[j] / rho[j]) * force[0 * size + j];
-	force_M[1 * size + j] = -1. * rho_M[j] * G_PM * temp[3];// +(rho_M[j] / rho[j]) * force[1 * size + j];
+	force_P[0 * size + j] = -1. * rho_P[j] * G_PM * temp[0];// + (rho_P[j] / rho[j]) * force[0 * size + j];
+	force_P[1 * size + j] = -1. * rho_P[j] * G_PM * temp[1];// + (rho_P[j] / rho[j]) * force[1 * size + j];
+	force_M[0 * size + j] = -1. * rho_M[j] * G_PM * temp[2];// + (rho_M[j] / rho[j]) * force[0 * size + j];
+	force_M[1 * size + j] = -1. * rho_M[j] * G_PM * temp[3];// + (rho_M[j] / rho[j]) * force[1 * size + j];
 
 	__syncthreads();
 
@@ -547,15 +630,13 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	momentum[0] = 0;
 	momentum[1] = 0;
 
-	
-
 	for (i = 0; i < 9; i++)
 	{
 		momentum[0] += c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
 		momentum[1] += c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
 	}
 
-	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];			//all tested and correct
+	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];			
 	u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
 
 	__syncthreads();
