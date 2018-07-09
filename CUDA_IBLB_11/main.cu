@@ -297,7 +297,7 @@ int main(int argc, char * argv[])
 	unsigned int c_num = 6;
 	double Re = 1.0;
 	unsigned int XDIM = 100;
-	unsigned int YDIM = 5;
+	unsigned int YDIM = 128;
 	unsigned int T = 100000;
 	unsigned int T_pow = 1;
 	float T_num = 1.0;
@@ -309,10 +309,11 @@ int main(int argc, char * argv[])
 	unsigned int c_space = 48;
 	bool ShARC = 0;
 	bool BigData = 0;
+	float G_PM = 1.;
 
 	if (argc < 11)
 	{
-		cout << "Too few arguments! " << argc - 1 << " entered of 10 required. " << endl;
+		cout << "Too few arguments! " << argc - 1 << " entered of 11 required. " << endl;
 
 		return 1;
 	}
@@ -320,9 +321,9 @@ int main(int argc, char * argv[])
 	stringstream arg;
 
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
-		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10];
+		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10] << ' ' << argv[11];
 
-	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData ;
+	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData >> G_PM ;
 
 	XDIM = c_num*c_space;
 	T = nearbyint(T_num * pow(10, T_pow));
@@ -780,24 +781,20 @@ int main(int argc, char * argv[])
 	for (j = 0; j < XDIM*YDIM; j++)
 	{
 		rho[j] = RHO_0;
-		rho_M[j] = 0.3;
-		if (j%XDIM < XDIM *1./2.)
-		{
-			
-			rho_M[j] = 0.7;
-		}
+		rho_M[j] = 0.1;
+		
 		
 
 		//rho_P[j] = 1. - 0.99*((j - j%XDIM) / XDIM) / YDIM;
 
 		//rho_M[j] = 0.99 * ((j - j%XDIM) / XDIM) / YDIM;
 
-		//double centre1[2] = { XDIM / 2., YDIM / 2. };
-		//double centre2[2] = { XDIM * 2. / 3., YDIM * 2. / 3. };
+		double centre1[2] = { XDIM / 2., YDIM / 2. };
+		//double centre2[2] = { XDIM / 2., YDIM / 2. };
 
 		
 
-		/*if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * 0.2 * YDIM * 0.2)
+		if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * 0.2 * YDIM * 0.2)
 		{
 			rho_M[j] = 0.5;
 			
@@ -807,7 +804,7 @@ int main(int argc, char * argv[])
 		{
 			rho_M[j] = 0.9;
 
-		}*/
+		}
 		
 		
 		rho_P[j] = 1. - rho_M[j];
@@ -1104,7 +1101,7 @@ int main(int argc, char * argv[])
 		}
 
 		//////////////////////////////////////////////////////
-
+/*
 		cudaStatus = cudaMemcpy(f0_M, d_f0_M, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of u failed!\n");
@@ -1191,7 +1188,7 @@ int main(int argc, char * argv[])
 		fsA << endl;
 
 		fsA.close();
-
+*/
 		//////////////////////////////////////////////
 
 		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU, TAU2, XDIM, YDIM, it);					//PCL COLLISION STEP
@@ -1213,7 +1210,7 @@ int main(int argc, char * argv[])
 		}
 
 		//////////////////////////////////////////////////////
-
+/*
 		cudaStatus = cudaMemcpy(f1_M, d_f1_M, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of u failed!\n");
@@ -1246,7 +1243,7 @@ int main(int argc, char * argv[])
 		fsA << endl;
 
 		fsA.close();
-
+*/
 		//////////////////////////////////////////////
 
 		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_P, d_f_P, XDIM, YDIM);												//PCL STREAMING STEP
@@ -1270,7 +1267,7 @@ int main(int argc, char * argv[])
 		}
 
 		//////////////////////////////////////////////////////
-
+/*
 		cudaStatus = cudaMemcpy(f_M, d_f_M, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of u failed!\n");
@@ -1303,6 +1300,7 @@ int main(int argc, char * argv[])
 		fsA << endl;
 
 		fsA.close();
+		*/
 
 		//////////////////////////////////////////////
 
@@ -1365,7 +1363,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, XDIM, YDIM);
+		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, XDIM, YDIM, G_PM);
 		
 		cudaEventRecord(fluid_done, f_stream);
 		{
@@ -1428,21 +1426,11 @@ int main(int argc, char * argv[])
 					fprintf(stderr, "cudaMemcpy of u failed!\n");
 				}
 
-				cudaStatus = cudaMemcpy(f_M, d_f_M, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
-				if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "cudaMemcpy of u failed!\n");
-				}
-
-				cudaStatus = cudaMemcpy(f_P, d_f_P, 9 * size * sizeof(double), cudaMemcpyDeviceToHost);
-				if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "cudaMemcpy of u failed!\n");
-				}
-
-				outfile = raw_data + to_string(it) + "-fluid.dat";
+				outfile = raw_data + to_string(it/INTERVAL) + "-fluid.dat";
 
 				fsA.open(outfile.c_str());
 
-				for (j = 60; j < 70; j++)
+				for (j = 0; j < size; j++)
 				{
 					int x = j%XDIM;
 					int y = (j - j%XDIM) / XDIM;
@@ -1453,13 +1441,7 @@ int main(int argc, char * argv[])
 
 					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
 
-					fsA << x << "\t" << y << "\t" << f_M[9 * j + 0] << "\t" << f_M[9 * j + 1] << "\t" << f_M[9 * j + 2] << "\t" << f_M[9 * j + 3] << "\t" << f_M[9 * j + 4]
-						<< "\t" << f_M[9 * j + 5] << "\t" << f_M[9 * j + 6] << "\t" << f_M[9 * j + 7] << "\t" << f_M[9 * j + 8] << "\t" << rho_M[j] << "\t" << force_M[0 * size + j] << "\t" << force_M[1 * size + j] << endl;
-
-					fsA << x << "\t" << y << "\t" << f_P[9 * j + 0] << "\t" << f_P[9 * j + 1] << "\t" << f_P[9 * j + 2] << "\t" << f_P[9 * j + 3] << "\t" << f_P[9 * j + 4]
-						<< "\t" << f_P[9 * j + 5] << "\t" << f_P[9 * j + 6] << "\t" << f_P[9 * j + 7] << "\t" << f_P[9 * j + 8] << "\t" << rho_P[j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
-
-					fsA << x << "\t" << y << "\t" << rho[j] << "\t" << u[0 * size + j] << "\t" << u[1 * size + j] << endl;
+					fsA << x << "\t" << y << "\t" << rho[j] << "\t" << u[0 * size + j] << "\t" << u[1 * size + j] << "\t" << psi << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
@@ -1478,7 +1460,7 @@ int main(int argc, char * argv[])
 				cudaStatus = cudaMemcpy(epsilon, d_epsilon, Np * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of epsilon failed!\n"); }
 
-				outfile = cilia_data + to_string(it) + "-cilia.dat";
+				outfile = cilia_data + to_string(it/INTERVAL) + "-cilia.dat";
 
 				fsA.open(outfile.c_str());
 

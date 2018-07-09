@@ -9,7 +9,7 @@
 
 
 __device__ const double C_S = 0.57735;
-__device__ const double G_PM = 0.1;
+//__device__ const double G_PM = 1.0;
 //__device__ const double TAU2 = 0.505556;
 //__device__ const double RHO_0 = 1.;
 
@@ -110,7 +110,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 3] = f[9 * j + 3] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 3];
+			f1[9 * j + 3] = f[9 * j + 3] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 3];
 
 			f_plus = (f[9 * j + 2] + f[9 * j + 4]) / 2.;
 			f_minus = (f[9 * j + 2] - f[9 * j + 4]) / 2.;
@@ -122,7 +122,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 4] = f[9 * j + 4] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 4];
+			f1[9 * j + 4] = f[9 * j + 4] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 4];
 
 			f_plus = (f[9 * j + 5] + f[9 * j + 7]) / 2.;
 			f_minus = (f[9 * j + 5] - f[9 * j + 7]) / 2.;
@@ -450,7 +450,7 @@ __global__ void macro(const double * f_P, const double * f_M, const double * for
 	__syncthreads();
 }
 
-__global__ void forces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, const double * force, double * force_P, double * force_M, double * u, double * Q, int XDIM, int YDIM)
+__global__ void forces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, const double * force, double * force_P, double * force_M, double * u, double * Q, int XDIM, int YDIM, const float G_PM)
 {
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -471,6 +471,11 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 
 	double momentum[2];
 	double spd(0.);
+
+	double psi_P = 1 - exp(-rho_P[j]);
+	double psi_M = 1 - exp(-rho_M[j]);
+	double psi_Pn;
+	double psi_Mn;
 
 	bool up(0), down(0), left(0), right(0), wall(0), done(0);
 
@@ -607,20 +612,23 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 
 		if (!wall)
 		{
-			temp[0] += 1.* t[i] * rho_M[next] * c_l[i * 2 + 0];
-			temp[1] += 1.* t[i] * rho_M[next] * c_l[i * 2 + 1];
-			temp[2] += 1.* t[i] * rho_P[next] * c_l[i * 2 + 0];
-			temp[3] += 1.* t[i] * rho_P[next] * c_l[i * 2 + 1];
+			psi_Pn = 1 - exp(-rho_P[next]);
+			psi_Mn = 1 - exp(-rho_M[next]);
+
+			temp[0] += 1.* t[i] * psi_Mn * c_l[i * 2 + 0];
+			temp[1] += 1.* t[i] * psi_Mn * c_l[i * 2 + 1];
+			temp[2] += 1.* t[i] * psi_Pn * c_l[i * 2 + 0];
+			temp[3] += 1.* t[i] * psi_Pn * c_l[i * 2 + 1];
 		}
 
 		//if (j == XDIM-1) printf("wall? %d -> %d \n", i, wall);
 			
 	}
 
-	force_P[0 * size + j] = -1. * rho_P[j] * G_PM * temp[0];// + (rho_P[j] / rho[j]) * force[0 * size + j];
-	force_P[1 * size + j] = -1. * rho_P[j] * G_PM * temp[1];// + (rho_P[j] / rho[j]) * force[1 * size + j];
-	force_M[0 * size + j] = -1. * rho_M[j] * G_PM * temp[2];// + (rho_M[j] / rho[j]) * force[0 * size + j];
-	force_M[1 * size + j] = -1. * rho_M[j] * G_PM * temp[3];// + (rho_M[j] / rho[j]) * force[1 * size + j];
+	force_P[0 * size + j] = -1. * psi_P * G_PM * temp[0];// + (rho_P[j] / rho[j]) * force[0 * size + j];
+	force_P[1 * size + j] = -1. * psi_P * G_PM * temp[1];// + (rho_P[j] / rho[j]) * force[1 * size + j];
+	force_M[0 * size + j] = -1. * psi_M * G_PM * temp[2];// + (rho_M[j] / rho[j]) * force[0 * size + j];
+	force_M[1 * size + j] = -1. * psi_M * G_PM * temp[3];// + (rho_M[j] / rho[j]) * force[1 * size + j];
 
 	__syncthreads();
 
