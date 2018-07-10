@@ -95,7 +95,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 3] = f[9 * j + 3] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 3];
+			f1[9 * j + 3] = f[9 * j + 3] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 3];
 
 			f_plus = (f[9 * j + 2] + f[9 * j + 4]) / 2.;
 			f_minus = (f[9 * j + 2] - f[9 * j + 4]) / 2.;
@@ -107,7 +107,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 4] = f[9 * j + 4] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 4];
+			f1[9 * j + 4] = f[9 * j + 4] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 4];
 
 			f_plus = (f[9 * j + 5] + f[9 * j + 7]) / 2.;
 			f_minus = (f[9 * j + 5] - f[9 * j + 7]) / 2.;
@@ -119,7 +119,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 7] = f[9 * j + 7] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 7];
+			f1[9 * j + 7] = f[9 * j + 7] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 7];
 
 			f_plus = (f[9 * j + 6] + f[9 * j + 8]) / 2.;
 			f_minus = (f[9 * j + 6] - f[9 * j + 8]) / 2.;
@@ -131,7 +131,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) - F[9 * j + 8];
+			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 8];
 
 		}
 
