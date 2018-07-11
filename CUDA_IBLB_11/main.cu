@@ -972,7 +972,7 @@ int main(int argc, char * argv[])
 
 			fsD << c_fraction *1. / c_num;
 
-			for (n = 1; n <= 3; n++)
+			for (n = 1; n <= 5; n++)
 			{
 				prox = proximity(XDIM, c_num, LENGTH, s, n);
 				ht = height(c_num, LENGTH, s, n);
