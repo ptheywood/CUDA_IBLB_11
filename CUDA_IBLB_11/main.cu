@@ -941,7 +941,6 @@ int main(int argc, char * argv[])
 
 		}
 
-
 		macro << <gridsize, blocksize, 0, f_stream >> > (d_f, d_u, d_rho, XDIM, YDIM);											//MACRO STEP
 
 		{
@@ -972,7 +971,7 @@ int main(int argc, char * argv[])
 
 			fsD << c_fraction *1. / c_num;
 
-			for (n = 1; n <= 5; n++)
+			for (n = 1; n <= 7; n++)
 			{
 				prox = proximity(XDIM, c_num, LENGTH, s, n);
 				ht = height(c_num, LENGTH, s, n);
