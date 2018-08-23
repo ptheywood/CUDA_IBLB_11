@@ -24,7 +24,7 @@ using namespace std;
 
 //------------------------------------------PHYSICAL CONSTANTS----------------------------
 
-#define C_S 0.577		//SPEED OF SOUND ON LATTICE
+#define C_S 0.57735		//SPEED OF SOUND ON LATTICE
 #define RHO_0 1.		//FLUID DENSITY
 #define PI 3.14159		//PI
 
@@ -781,7 +781,7 @@ int main(int argc, char * argv[])
 	for (j = 0; j < XDIM*YDIM; j++)
 	{
 		rho[j] = RHO_0;
-		rho_M[j] = 0.1;
+		rho_M[j] = 0.01;
 		
 		
 
@@ -794,15 +794,15 @@ int main(int argc, char * argv[])
 
 		
 
-		if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * 0.2 * YDIM * 0.2)
+		/*if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * 0.2 * YDIM * 0.2)
 		{
 			rho_M[j] = 0.5;
 			
-		}
+		}*/
 
-		if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * 0.166 * YDIM * 0.166)
+		if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * YDIM / 6.283)
 		{
-			rho_M[j] = 0.9;
+			rho_M[j] = 0.99;
 
 		}
 		
@@ -1301,7 +1301,6 @@ int main(int argc, char * argv[])
 
 		fsA.close();
 		*/
-
 		//////////////////////////////////////////////
 
 
