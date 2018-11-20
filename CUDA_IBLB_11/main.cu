@@ -343,7 +343,7 @@ int main(int argc, char * argv[])
 
 	double t_scale = 1000.*dt*t_0;					//milliseconds
 	double x_scale = 1000000. * dx*l_0;				//microns
-	double s_scale = x_scale / t_scale;		//millimetres per second
+	double s_scale = x_scale / t_scale;				//millimetres per second
 
 	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
 	const double TAU2 = 1. / (12.*(TAU - (1. / 2.))) + (1. / 2.);
@@ -781,7 +781,7 @@ int main(int argc, char * argv[])
 	for (j = 0; j < XDIM*YDIM; j++)
 	{
 		rho[j] = RHO_0;
-		rho_M[j] = 0.01;
+		rho_M[j] = 0.1;
 		
 		
 
@@ -799,12 +799,14 @@ int main(int argc, char * argv[])
 			rho_M[j] = 0.5;
 			
 		}*/
-
+/*
 		if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * YDIM / 6.283)
 		{
 			rho_M[j] = 0.99;
 
-		}
+		}*/
+
+		if(((j - j%XDIM) / XDIM) >= YDIM/2) rho_M[j] = 0.9;
 		
 		
 		rho_P[j] = 1. - rho_M[j];
@@ -1391,7 +1393,6 @@ int main(int argc, char * argv[])
 
 		if (it % INTERVAL == 0)
 		{
-			if (BigData)
 			{
 				cudaEventSynchronize(fluid_done);
 
@@ -1409,6 +1410,11 @@ int main(int argc, char * argv[])
 				if (cudaStatus != cudaSuccess) {
 					fprintf(stderr, "second cudaMemcpy of rho_M failed!\n");
 				}
+			}
+
+			if (BigData)
+			{
+				{
 
 				cudaStatus = cudaMemcpy(u, d_u, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) {
@@ -1424,7 +1430,7 @@ int main(int argc, char * argv[])
 				if (cudaStatus != cudaSuccess) {
 					fprintf(stderr, "cudaMemcpy of u failed!\n");
 				}
-
+				}
 				outfile = raw_data + to_string(it/INTERVAL) + "-fluid.dat";
 
 				fsA.open(outfile.c_str());
@@ -1477,7 +1483,35 @@ int main(int argc, char * argv[])
 
 			cudaEventSynchronize(Q_done);
 
-			fsB << it*t_scale << "\t" << Q[0] * x_scale << endl;
+			/*fsB << it*t_scale << "\t" << Q[0] * x_scale << endl;
+
+			fsB.close();*/
+
+			//------------------------density testing-------------------
+
+			double density = 0;
+			double PCL = 0.;
+			double ML = 0.;
+			double psimax = 0.;
+			double psimin = 0.;
+
+			for (int j = 0; j < size; j++)
+			{
+				float psi = (rho_M[j] - rho_P[j]) / (rho_P[j] + rho_M[j]);
+
+				density += rho[j];
+				PCL += rho_P[j];
+				ML += rho_M[j];
+				if (psi > psimax) psimax = psi;
+				if (psi < psimin) psimin = psi;
+
+			}
+			density /= (size);
+			PCL /= (size);
+			ML /= (size);
+			//----------------------------------------------------------
+
+			fsB << it << "\t" << density << "\t" << psimax << "\t" << psimin << endl;
 
 			fsB.close();
 		}
@@ -1504,12 +1538,6 @@ int main(int argc, char * argv[])
 	cudaStreamDestroy(c_stream);
 	cudaStreamDestroy(f_stream);
 	cudaStreamDestroy(o_stream);
-
-	fsB.open(flux.c_str(), ofstream::app);
-
-	fsB << it*t_scale << "\t" << Q[0] * x_scale << endl;
-
-	fsB.close();
 	
 	double end = seconds();
 
@@ -1525,11 +1553,11 @@ int main(int argc, char * argv[])
 	fsC.open(parameters.c_str(), ofstream::app);
 
 	fsC << "Total runtime: ";
-	if (hours < 10) fsC << 0;
+	if (hours < 10) fsC << "0";
 	fsC << hours << ":";
-	if (mins < 10) fsC << 0;
+	if (mins < 10) fsC << "0";
 	fsC << mins << ":";
-	if (secs < 10) fsC << 0;
+	if (secs < 10) fsC << "0";
 	fsC << secs << endl;
 	
 

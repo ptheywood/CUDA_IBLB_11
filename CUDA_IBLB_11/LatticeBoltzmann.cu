@@ -610,10 +610,10 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 			next = j + c_l[i * 2 + 0] + XDIM*c_l[i * 2 + 1];		//checked, all correct
 		}
 
-		if (!wall)
+		//if (!wall)
 		{
-			psi_Pn = 1 - exp(-rho_P[next]);
-			psi_Mn = 1 - exp(-rho_M[next]);
+			psi_Pn = 1. - exp(-rho_P[next]);
+			psi_Mn = 1. - exp(-rho_M[next]);
 
 			temp[0] += 1.* t[i] * psi_Mn * c_l[i * 2 + 0];
 			temp[1] += 1.* t[i] * psi_Mn * c_l[i * 2 + 1];
