@@ -343,10 +343,10 @@ int main(int argc, char * argv[])
 
 	double t_scale = 1000.*dt*t_0;					//milliseconds
 	double x_scale = 1000000. * dx*l_0;				//microns
-	double s_scale = x_scale / t_scale;				//millimetres per second
+	double s_scale = x_scale / t_scale;				//millimetres per second 
 
-	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
-	const double TAU2 = 1. / (12.*(TAU - (1. / 2.))) + (1. / 2.);
+	const double TAU = 1.0; //(SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
+	const double TAU2 = 1. / (4.*(TAU - (1. / 2.))) + (1. / 2.);
 
 	time_t rawtime;
 	struct tm * timeinfo;
@@ -1141,16 +1141,19 @@ int main(int argc, char * argv[])
 		fsA << "equilibrium" << endl;
 
 
-		for (j = 2*128 + 62; j < 2*128 + 65; j++)
+		for (j = 63 * 128 + 0; j < 64 * 128 + 128; j++)
 		{
-			int x = j%XDIM;
-			int y = (j - j%XDIM) / XDIM;
+			if (j == 63 * 128 + 64 || j == 64 * 128 + 64)
+			{
+				int x = j%XDIM;
+				int y = (j - j%XDIM) / XDIM;
 
-			fsA << x << "\t" << y << "\t" << f0_M[9 * j + 0] << "\t" << f0_M[9 * j + 1] << "\t" << f0_M[9 * j + 2] << "\t" << f0_M[9 * j + 3] << "\t" << f0_M[9 * j + 4]
-				<< "\t" << f0_M[9 * j + 5] << "\t" << f0_M[9 * j + 6] << "\t" << f0_M[9 * j + 7] << "\t" << f0_M[9 * j + 8] << endl;
+				fsA << x << "\t" << y << "\t" << f0_M[9 * j + 0] << "\t" << f0_M[9 * j + 1] << "\t" << f0_M[9 * j + 2] << "\t" << f0_M[9 * j + 3] << "\t" << f0_M[9 * j + 4]
+					<< "\t" << f0_M[9 * j + 5] << "\t" << f0_M[9 * j + 6] << "\t" << f0_M[9 * j + 7] << "\t" << f0_M[9 * j + 8] << endl;
 
-			fsA << x << "\t" << y << "\t" << f0_P[9 * j + 0] << "\t" << f0_P[9 * j + 1] << "\t" << f0_P[9 * j + 2] << "\t" << f0_P[9 * j + 3] << "\t" << f0_P[9 * j + 4]
-				<< "\t" << f0_P[9 * j + 5] << "\t" << f0_P[9 * j + 6] << "\t" << f0_P[9 * j + 7] << "\t" << f0_P[9 * j + 8] << "\t" << endl;
+				fsA << x << "\t" << y << "\t" << f0_P[9 * j + 0] << "\t" << f0_P[9 * j + 1] << "\t" << f0_P[9 * j + 2] << "\t" << f0_P[9 * j + 3] << "\t" << f0_P[9 * j + 4]
+					<< "\t" << f0_P[9 * j + 5] << "\t" << f0_P[9 * j + 6] << "\t" << f0_P[9 * j + 7] << "\t" << f0_P[9 * j + 8] << "\t" << endl;
+			}
 		}
 
 		fsA << endl;
@@ -1158,16 +1161,19 @@ int main(int argc, char * argv[])
 		fsA << "distribution" << endl;
 
 
-		for (j = 2*128 + 62; j < 2*128 + 65; j++)
+		for (j = 63 * 128 + 0; j < 64 * 128 + 128; j++)
 		{
-			int x = j%XDIM;
-			int y = (j - j%XDIM) / XDIM;
+			if (j == 63 * 128 + 64 || j == 64 * 128 + 64)
+			{
+				int x = j%XDIM;
+				int y = (j - j%XDIM) / XDIM;
 
-			fsA << x << "\t" << y << "\t" << f_M[9 * j + 0] << "\t" << f_M[9 * j + 1] << "\t" << f_M[9 * j + 2] << "\t" << f_M[9 * j + 3] << "\t" << f_M[9 * j + 4]
-				<< "\t" << f_M[9 * j + 5] << "\t" << f_M[9 * j + 6] << "\t" << f_M[9 * j + 7] << "\t" << f_M[9 * j + 8] << endl;
+				fsA << x << "\t" << y << "\t" << f_M[9 * j + 0] << "\t" << f_M[9 * j + 1] << "\t" << f_M[9 * j + 2] << "\t" << f_M[9 * j + 3] << "\t" << f_M[9 * j + 4]
+					<< "\t" << f_M[9 * j + 5] << "\t" << f_M[9 * j + 6] << "\t" << f_M[9 * j + 7] << "\t" << f_M[9 * j + 8] << endl;
 
-			fsA << x << "\t" << y << "\t" << f_P[9 * j + 0] << "\t" << f_P[9 * j + 1] << "\t" << f_P[9 * j + 2] << "\t" << f_P[9 * j + 3] << "\t" << f_P[9 * j + 4]
-				<< "\t" << f_P[9 * j + 5] << "\t" << f_P[9 * j + 6] << "\t" << f_P[9 * j + 7] << "\t" << f_P[9 * j + 8] << "\t" << endl;
+				fsA << x << "\t" << y << "\t" << f_P[9 * j + 0] << "\t" << f_P[9 * j + 1] << "\t" << f_P[9 * j + 2] << "\t" << f_P[9 * j + 3] << "\t" << f_P[9 * j + 4]
+					<< "\t" << f_P[9 * j + 5] << "\t" << f_P[9 * j + 6] << "\t" << f_P[9 * j + 7] << "\t" << f_P[9 * j + 8] << "\t" << endl;
+			}
 		}
 
 		fsA << endl;
@@ -1175,16 +1181,19 @@ int main(int argc, char * argv[])
 		fsA << "force" << endl;
 
 
-		for (j = 2*128 + 62; j < 2*128 + 65; j++)
+		for (j = 63 * 128 + 0; j < 64 * 128 + 128; j++)
 		{
-			int x = j%XDIM;
-			int y = (j - j%XDIM) / XDIM;
+			if (j == 63 * 128 + 64 || j == 64 * 128 + 64)
+			{
+				int x = j%XDIM;
+				int y = (j - j%XDIM) / XDIM;
 
-			fsA << x << "\t" << y << "\t" << F_M[9 * j + 0] << "\t" << F_M[9 * j + 1] << "\t" << F_M[9 * j + 2] << "\t" << F_M[9 * j + 3] << "\t" << F_M[9 * j + 4]
-				<< "\t" << F_M[9 * j + 5] << "\t" << F_M[9 * j + 6] << "\t" << F_M[9 * j + 7] << "\t" << F_M[9 * j + 8] << endl;
+				fsA << x << "\t" << y << "\t" << F_M[9 * j + 0] << "\t" << F_M[9 * j + 1] << "\t" << F_M[9 * j + 2] << "\t" << F_M[9 * j + 3] << "\t" << F_M[9 * j + 4]
+					<< "\t" << F_M[9 * j + 5] << "\t" << F_M[9 * j + 6] << "\t" << F_M[9 * j + 7] << "\t" << F_M[9 * j + 8] << endl;
 
-			fsA << x << "\t" << y << "\t" << F_P[9 * j + 0] << "\t" << F_P[9 * j + 1] << "\t" << F_P[9 * j + 2] << "\t" << F_P[9 * j + 3] << "\t" << F_P[9 * j + 4]
-				<< "\t" << F_P[9 * j + 5] << "\t" << F_P[9 * j + 6] << "\t" << F_P[9 * j + 7] << "\t" << F_P[9 * j + 8] << "\t" << endl;
+				fsA << x << "\t" << y << "\t" << F_P[9 * j + 0] << "\t" << F_P[9 * j + 1] << "\t" << F_P[9 * j + 2] << "\t" << F_P[9 * j + 3] << "\t" << F_P[9 * j + 4]
+					<< "\t" << F_P[9 * j + 5] << "\t" << F_P[9 * j + 6] << "\t" << F_P[9 * j + 7] << "\t" << F_P[9 * j + 8] << "\t" << endl;
+			}
 		}
 		
 		fsA << endl;
@@ -1230,16 +1239,19 @@ int main(int argc, char * argv[])
 		fsA << "collision" << endl;
 
 
-		for (j = 2*128 + 62; j < 2*128 + 65; j++)
+		for (j = 63*128 + 0; j < 64*128 + 128; j++)
 		{
-			int x = j%XDIM;
-			int y = (j - j%XDIM) / XDIM;
+			if (j == 63 * 128 + 64 || j == 64 * 128 + 64)
+			{
+				int x = j%XDIM;
+				int y = (j - j%XDIM) / XDIM;
 
-			fsA << x << "\t" << y << "\t" << f1_M[9 * j + 0] << "\t" << f1_M[9 * j + 1] << "\t" << f1_M[9 * j + 2] << "\t" << f1_M[9 * j + 3] << "\t" << f1_M[9 * j + 4]
-				<< "\t" << f1_M[9 * j + 5] << "\t" << f1_M[9 * j + 6] << "\t" << f1_M[9 * j + 7] << "\t" << f1_M[9 * j + 8] << endl;
+				fsA << x << "\t" << y << "\t" << f1_M[9 * j + 0] << "\t" << f1_M[9 * j + 1] << "\t" << f1_M[9 * j + 2] << "\t" << f1_M[9 * j + 3] << "\t" << f1_M[9 * j + 4]
+					<< "\t" << f1_M[9 * j + 5] << "\t" << f1_M[9 * j + 6] << "\t" << f1_M[9 * j + 7] << "\t" << f1_M[9 * j + 8] << endl;
 
-			fsA << x << "\t" << y << "\t" << f1_P[9 * j + 0] << "\t" << f1_P[9 * j + 1] << "\t" << f1_P[9 * j + 2] << "\t" << f1_P[9 * j + 3] << "\t" << f1_P[9 * j + 4]
-				<< "\t" << f1_P[9 * j + 5] << "\t" << f1_P[9 * j + 6] << "\t" << f1_P[9 * j + 7] << "\t" << f1_P[9 * j + 8] << "\t" << endl;
+				fsA << x << "\t" << y << "\t" << f1_P[9 * j + 0] << "\t" << f1_P[9 * j + 1] << "\t" << f1_P[9 * j + 2] << "\t" << f1_P[9 * j + 3] << "\t" << f1_P[9 * j + 4]
+					<< "\t" << f1_P[9 * j + 5] << "\t" << f1_P[9 * j + 6] << "\t" << f1_P[9 * j + 7] << "\t" << f1_P[9 * j + 8] << "\t" << endl;
+			}
 		}
 
 		fsA << endl;
@@ -1287,16 +1299,19 @@ int main(int argc, char * argv[])
 		fsA << "streaming" << endl;
 
 
-		for (j = 2*128 + 62; j < 2*128 + 65; j++)
+		for (j = 63 * 128 + 0; j < 64 * 128 + 128; j++)
 		{
-			int x = j%XDIM;
-			int y = (j - j%XDIM) / XDIM;
+			if (j == 63 * 128 + 64 || j == 64 * 128 + 64)
+			{
+				int x = j%XDIM;
+				int y = (j - j%XDIM) / XDIM;
 
-			fsA << x << "\t" << y << "\t" << f_M[9 * j + 0] << "\t" << f_M[9 * j + 1] << "\t" << f_M[9 * j + 2] << "\t" << f_M[9 * j + 3] << "\t" << f_M[9 * j + 4]
-				<< "\t" << f_M[9 * j + 5] << "\t" << f_M[9 * j + 6] << "\t" << f_M[9 * j + 7] << "\t" << f_M[9 * j + 8] << endl;
+				fsA << x << "\t" << y << "\t" << f_M[9 * j + 0] << "\t" << f_M[9 * j + 1] << "\t" << f_M[9 * j + 2] << "\t" << f_M[9 * j + 3] << "\t" << f_M[9 * j + 4]
+					<< "\t" << f_M[9 * j + 5] << "\t" << f_M[9 * j + 6] << "\t" << f_M[9 * j + 7] << "\t" << f_M[9 * j + 8] << endl;
 
-			fsA << x << "\t" << y << "\t" << f_P[9 * j + 0] << "\t" << f_P[9 * j + 1] << "\t" << f_P[9 * j + 2] << "\t" << f_P[9 * j + 3] << "\t" << f_P[9 * j + 4]
-				<< "\t" << f_P[9 * j + 5] << "\t" << f_P[9 * j + 6] << "\t" << f_P[9 * j + 7] << "\t" << f_P[9 * j + 8] << "\t" << endl;
+				fsA << x << "\t" << y << "\t" << f_P[9 * j + 0] << "\t" << f_P[9 * j + 1] << "\t" << f_P[9 * j + 2] << "\t" << f_P[9 * j + 3] << "\t" << f_P[9 * j + 4]
+					<< "\t" << f_P[9 * j + 5] << "\t" << f_P[9 * j + 6] << "\t" << f_P[9 * j + 7] << "\t" << f_P[9 * j + 8] << "\t" << endl;
+			}
 		}
 
 		fsA << endl;
