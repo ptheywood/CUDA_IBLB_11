@@ -329,7 +329,6 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 
 			}
 
-			
 			//--------------------------------------------------STREAMING CALCULATIONS-------------------------------
 
 			if (back && !done)
@@ -339,7 +338,6 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 				if (i == 1) k = 3;
 				if (i == 2) k = 4;
 				if (i == 3) k = 1;
-
 				if (i == 4) k = 2;
 				if (i == 5) k = 7;
 				if (i == 6) k = 8;
@@ -350,9 +348,9 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 			{
 				jstream = j; //SLIP STREAM
 
-				if (i == 1) k = 3;
+				if (i == 1) k = 1;
 				if (i == 2) k = 4;
-				if (i == 3) k = 1;
+				if (i == 3) k = 3;
 				if (i == 4) k = 2;
 				if (i == 5) k = 8;
 				if (i == 6) k = 7;
@@ -370,6 +368,8 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 				jstream = j + c_l[i * 2 + 0] - XDIM*(YDIM - 1)*c_l[i * 2 + 1]; //THROUGH STREAM
 
 				k = i;
+
+				printf("\nTHRP!!\n");
 			}
 			else if (!done)
 			{
@@ -394,7 +394,7 @@ __global__ void macro(const double * f_P, const double * f_M, const double * for
 
 	int size = XDIM*YDIM;
 
-	//double momentum[2] = { 0,0 };
+	double momentum[2] = { 0,0 };
 
 	{
 		j = threadnum;
@@ -403,11 +403,11 @@ __global__ void macro(const double * f_P, const double * f_M, const double * for
 		rho_M[j] = 0.;
 		rho[j] = 0.;
 
-		//u[0 * size + j] = 0.;
-		//u[1 * size + j] = 0.;
+		u[0 * size + j] = 0.;
+		u[1 * size + j] = 0.;
 
-		//momentum[0] = 0.;
-		//momentum[1] = 0.;
+		momentum[0] = 0.;
+		momentum[1] = 0.;
 
 		for (i = 0; i < 9; i++)
 		{
@@ -415,16 +415,16 @@ __global__ void macro(const double * f_P, const double * f_M, const double * for
 			rho_M[j] += f_M[9 * j + i];
 			
 
-			//momentum[0] += c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
-			//momentum[1] += c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
+			momentum[0] += c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
+			momentum[1] += c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
 		}
 
 		__syncthreads();
 
 		rho[j] = rho_P[j] + rho_M[j];
 
-		//u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
-		//u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
+		u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
+		u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
 
 		
 	}
@@ -459,7 +459,15 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	double psi_Pn;
 	double psi_Mn;
 
-	bool up(0), down(0), left(0), right(0), wall(0), done(0);
+	bool up(0), down(0), left(0), right(0), epi(0), air(0), done(0);
+
+	double force_EP[2] = { 0.,0. };
+	double force_AP[2] = { 0.,0. };
+	double force_EM[2] = { 0.,0. };
+	double force_AM[2] = { 0.,0. };
+
+	double G_PE = -1;
+	double G_MA = -1;
 
 	int x = j%XDIM;
 	int y = (j - j%XDIM) / XDIM;
@@ -472,7 +480,8 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 
 	for (i = 1; i < 9; i++)
 	{
-		wall = 0;
+		epi = 0;
+		air = 0;
 		done = 0;
 		next = 0;
 
@@ -483,38 +492,42 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 			case 0: break;
 
 			case 1:
-				if (right)	{ next = j - 1*(XDIM - 1); done = 1;}
+
+				if (right)	
+				{ 
+					next = j - 1*(XDIM - 1); 
+					done = 1;
+				}
 				break;
+
 			case 2:
 				if (up)		
 				{ 
-					wall = 1; 
-					next = j - 1 * XDIM*(YDIM - 1);
+					air = 1; 
 					done = 1;
 				}
 				break;
 			case 3:
-				if (left)	{ next = j + 1*(XDIM - 1); done = 1;}
+
+				if (left)	
+				{ 
+					next = j + 1*(XDIM - 1); 
+					done = 1;
+				}
 				break;
 			case 4:
+
 				if (down)	
 				{
-					wall = 1; 
-					next = j + 1 * XDIM*(YDIM - 1);
+					epi = 1; 
 					done = 1;
 				}
 				break;
 			case 5:
 
-				if (up && right)
+				if (up)
 				{
-					next = 0;
-					done = 1;
-				}
-				else if (up)
-				{
-					wall = 1;
-					next = j - 1 * XDIM*(YDIM - 1) + 1;
+					air = 1;
 					done = 1;
 				}
 				else if (right)
@@ -526,15 +539,9 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				break;
 			case 6:
 
-				if (up && left)
+				if (up)
 				{
-					next = XDIM - 1;
-					done = 1;
-				}
-				else if (up)
-				{
-					wall = 1;
-					next = j - 1 * XDIM*(YDIM - 1) - 1;
+					air = 1;
 					done = 1;
 				}
 				else if (left)
@@ -546,15 +553,9 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				break;
 			case 7:
 
-				if (down && left)
+				if (down)
 				{
-					next = size - 1;
-					done = 1;
-				}
-				else if (down)
-				{
-					wall = 1;
-					next = j + 1 * XDIM*(YDIM - 1) - 1;
+					epi = 1;
 					done = 1;
 				}
 				else if (left)
@@ -566,15 +567,9 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 				break;
 			case 8:
 
-				if (down && right)
+				if (down)
 				{
-					next = size - XDIM;
-					done = 1;
-				}
-				else if (down)
-				{
-					wall = 1;
-					next = j + 1 * XDIM*(YDIM - 1) + 1;
+					epi = 1;
 					done = 1;
 				}
 				else if (right)
@@ -592,7 +587,23 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 			next = j + c_l[i * 2 + 0] + XDIM*c_l[i * 2 + 1];		//checked, all correct
 		}
 
-		if (!wall)
+		if (epi)
+		{
+			force_EP[0] += -1. * psi_P * G_PE * t[i] * c_l[i * 2 + 0];
+			force_EP[1] += -1. * psi_P * G_PE * t[i] * c_l[i * 2 + 1];
+
+			force_EM[0] +=  1. * psi_M * G_PE * t[i] * c_l[i * 2 + 0];
+			force_EM[1] +=  1. * psi_M * G_PE * t[i] * c_l[i * 2 + 1];
+		}
+		else if (air)
+		{
+			force_AP[0] +=  1. * psi_P * G_MA * t[i] * c_l[i * 2 + 0];
+			force_AP[1] +=  1. * psi_P * G_MA * t[i] * c_l[i * 2 + 1];
+
+			force_AM[0] += -1. * psi_M * G_MA * t[i] * c_l[i * 2 + 0];
+			force_AM[1] += -1. * psi_M * G_MA * t[i] * c_l[i * 2 + 1];
+		}
+		else if (i != 0)
 		{
 			psi_Pn = 1. - exp(-rho_P[next]);
 			psi_Mn = 1. - exp(-rho_M[next]);
@@ -607,10 +618,10 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 			
 	}
 
-	force_P[0 * size + j] = -1. * psi_P * G_PM * temp[0] + (rho_P[j] / rho[j]) * force[0 * size + j];
-	force_P[1 * size + j] = -1. * psi_P * G_PM * temp[1] + (rho_P[j] / rho[j]) * force[1 * size + j];
-	force_M[0 * size + j] = -1. * psi_M * G_PM * temp[2] + (rho_M[j] / rho[j]) * force[0 * size + j];
-	force_M[1 * size + j] = -1. * psi_M * G_PM * temp[3] + (rho_M[j] / rho[j]) * force[1 * size + j];
+	force_P[0 * size + j] = -1. * psi_P * G_PM * temp[0] + (rho_P[j] / rho[j]) * force[0 * size + j] + force_EP[0] + force_AP[0];
+	force_P[1 * size + j] = -1. * psi_P * G_PM * temp[1] + (rho_P[j] / rho[j]) * force[1 * size + j] + force_EP[1] + force_AP[1];
+	force_M[0 * size + j] = -1. * psi_M * G_PM * temp[2] + (rho_M[j] / rho[j]) * force[0 * size + j] + force_EM[0] + force_AM[0];
+	force_M[1 * size + j] = -1. * psi_M * G_PM * temp[3] + (rho_M[j] / rho[j]) * force[1 * size + j] + force_EM[1] + force_AM[1];
 
 	__syncthreads();
 

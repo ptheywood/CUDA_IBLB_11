@@ -297,7 +297,7 @@ int main(int argc, char * argv[])
 	unsigned int c_num = 6;
 	double Re = 1.0;
 	unsigned int XDIM = 100;
-	unsigned int YDIM = 128;
+	unsigned int YDIM = 192;
 	unsigned int T = 100000;
 	unsigned int T_pow = 1;
 	float T_num = 1.0;
@@ -345,8 +345,8 @@ int main(int argc, char * argv[])
 	double x_scale = 1000000. * dx*l_0;				//microns
 	double s_scale = x_scale / t_scale;				//millimetres per second 
 
-	const double TAU = 1.0; //(SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
-	const double TAU2 = 1. / (4.*(TAU - (1. / 2.))) + (1. / 2.);
+	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
+	const double TAU2 = 3. / (16.*(TAU - (1. / 2.))) + (1. / 2.);
 
 	time_t rawtime;
 	struct tm * timeinfo;
@@ -781,18 +781,14 @@ int main(int argc, char * argv[])
 	for (j = 0; j < XDIM*YDIM; j++)
 	{
 		rho[j] = RHO_0;
-		rho_M[j] = 0.1;
+		//rho_M[j] = 0.01;
 		
-		
+		//rho_M[j] = 1.0*((j - j%XDIM) / XDIM) / YDIM;
 
-		//rho_P[j] = 1. - 0.99*((j - j%XDIM) / XDIM) / YDIM;
+		//rho_P[j] = 1.0 - rho_M[j];
 
-		//rho_M[j] = 0.99 * ((j - j%XDIM) / XDIM) / YDIM;
-
-		double centre1[2] = { XDIM / 2., YDIM / 2. };
+		//double centre1[2] = { XDIM / 2., YDIM / 2. };
 		//double centre2[2] = { XDIM / 2., YDIM / 2. };
-
-		
 
 		/*if ((j%XDIM - centre1[0])*(j%XDIM - centre1[0]) + (((j - j%XDIM) / XDIM) - centre1[1])*(((j - j%XDIM) / XDIM) - centre1[1]) < YDIM * 0.2 * YDIM * 0.2)
 		{
@@ -806,11 +802,30 @@ int main(int argc, char * argv[])
 
 		}*/
 
-		if(((j - j%XDIM) / XDIM) >= YDIM/2) rho_M[j] = 0.9;
-		
-		
-		rho_P[j] = 1. - rho_M[j];
+		if (((j - j%XDIM) / XDIM) < LENGTH*0.95)
+		{
+			rho_P[j] = 0.8;
+			rho_M[j] = 0.2;
+		}
 
+		if (((j - j%XDIM) / XDIM) >= LENGTH*0.95)
+		{
+			rho_P[j] = 0.2;
+			rho_M[j] = 0.8;
+		}
+/*
+		if (((j - j%XDIM) / XDIM) <= 1)
+		{
+			rho_P[j] = 1.0;
+			rho_M[j] = 0.0;
+		}
+
+		if (((j - j%XDIM) / XDIM) >= YDIM - 2)
+		{
+			rho_P[j] = 0.0;
+			rho_M[j] = 1.0;
+		}
+*/
 		u[0 * size + j] = 0.0;
 		u[1 * size + j] = 0.0;
 
@@ -1357,7 +1372,7 @@ int main(int argc, char * argv[])
 		
 		cudaEventDestroy(cilia_done);
 
-		//interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1366,7 +1381,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		//spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
+		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1461,7 +1476,7 @@ int main(int argc, char * argv[])
 
 					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
 
-					fsA << x << "\t" << y << "\t" << rho[j] << "\t" << u[0 * size + j] << "\t" << u[1 * size + j] << "\t" << psi << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << psi << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
