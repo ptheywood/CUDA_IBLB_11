@@ -325,7 +325,7 @@ int main(int argc, char * argv[])
 
 	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData ;
 
-	XDIM = c_num*c_space;
+	XDIM = c_num*c_space + 192; //added 192 for 12 micron space
 	T = nearbyint(T_num * pow(10, T_pow));
 	ITERATIONS = T*I_pow; 
 	INTERVAL = ITERATIONS / P_num;
@@ -600,10 +600,6 @@ int main(int argc, char * argv[])
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc failed!");
 		}
-
-	}
-
-	{
 
 		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {

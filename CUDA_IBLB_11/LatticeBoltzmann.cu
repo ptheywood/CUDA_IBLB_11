@@ -342,9 +342,9 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 			{
 				jstream = j; //SLIP STREAM
 
-				if (i == 1) k = 3;
+				if (i == 1) k = 1;
 				if (i == 2) k = 4;
-				if (i == 3) k = 1;
+				if (i == 3) k = 3;
 				if (i == 4) k = 2;
 				if (i == 5) k = 8;
 				if (i == 6) k = 7;
