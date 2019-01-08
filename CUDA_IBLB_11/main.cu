@@ -274,11 +274,11 @@ int main(int argc, char * argv[])
 	float T_num = 1.0;					//value of time period
 	unsigned int ITERATIONS = T;		//number of iterations in simulation
 	unsigned int P_num = 100;			//number of data points to output
-	float I_pow = 1.0;					//number of time periods in simulation
+	float I_num = 1.0;					//number of time periods in simulation
 	unsigned int INTERVAL = 500;		//data utput interval
 	unsigned int LENGTH = 96;			//cilium length in lattice units
 	unsigned int c_space = 48;			//space between cilia bases in lattice units
-	bool ShARC = 0;						//runnin on cluster Y/N
+	bool ShARC = 0;						//running on cluster Y/N
 	bool BigData = 0;					//output spatial data Y/N
 
 	if (argc < 11)
@@ -293,11 +293,11 @@ int main(int argc, char * argv[])
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
 		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10];
 
-	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData ;
+	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_num >> P_num >> ShARC >> BigData ;
 
 	XDIM = c_num*c_space;						//x dimension of simulation region in lattice units
 	T = nearbyint(T_num * pow(10, T_pow));		//time period of cilia beat cycle i lattice units
-	ITERATIONS = T*I_pow;						//number of iterations in simulation
+	ITERATIONS = T*I_num;						//number of iterations in simulation
 	INTERVAL = ITERATIONS / P_num;				//data output interval
 
 	if (XDIM < 2 * LENGTH)
