@@ -73,6 +73,7 @@ __constant__ double B_mn[7 * 2 * 3] =
 	0.0,	 0.339,	-0.327,	-0.114,	-0.105,	-0.057,	-0.055
 };
 
+//-------------------------------DEFINITION OF EACH CILIUM BOUNDARY------------------------
 __global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, float * s, float * lasts, float * b_points)
 {
 	int n(0), j(0);
@@ -171,6 +172,7 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 	}
 }
 
+//-------------------------------SWITCHING OF BONDARY POINTS-------------------------------
 __global__ void boundary_check(const double c_space, const int c_num, const int XDIM, const int it, const float *  b_points,  float * s, float * u_s, int * epsilon)
 {
 	int r(0), j(0), l(0), m(0);
@@ -249,39 +251,7 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 
 }
 
-float  proximity(const int XDIM, const int c_num, const int L, const float * s, const int level)
-{
-	int cilium_p = 0;
-	int cilium_m = 0;
-	float prox(0.);
-
-	cilium_p = (0 + level) * L;
-	cilium_m = (c_num - level) * L;
-
-	if (s[2 * (cilium_m + (L - 1)) + 0] > XDIM/2 ) prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0] - XDIM));
-	else if (s[2 * (cilium_p + (L - 1)) + 0] > XDIM / 2) prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - XDIM - s[2 * (cilium_m + (L - 1)) + 0]);
-	else prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0]));
-
-	return prox;
-
-}
-
-double  height(const int c_num, const int L, const float * s, const int level)
-{
-	int cilium_p = 0;
-	int cilium_m = 0;
-	double ht(0.);
-
-	cilium_p = (0 + level) * L;
-	cilium_m = (c_num - level) * L;
-
-	
-	ht = 0.5 * (s[2 * (cilium_p + (L - 1)) + 1] + s[2 * (cilium_m + (L - 1)) + 1]);
-	
-	return ht;
-
-}
-
+//-------------------------------TRUNCATE DOUBLES FOR FILE NAMES---------------------------
 template <typename T>
 std::string to_string_3(const T a_value, const int n = 3)
 {
@@ -294,22 +264,22 @@ int main(int argc, char * argv[])
 {
 	//----------------------------INITIALISING----------------------------
 
-	unsigned int c_fraction = 1;
-	unsigned int c_num = 6;
-	double Re = 1.0;
-	unsigned int XDIM = 288;
-	unsigned int YDIM = 192;
-	unsigned int T = 100000;
-	unsigned int T_pow = 1;
-	float T_num = 1.0;
-	unsigned int ITERATIONS = T;
-	unsigned int P_num = 100;
-	float I_pow = 1.0;
-	unsigned int INTERVAL = 500;
-	unsigned int LENGTH = 96;
-	unsigned int c_space = 48;
-	bool ShARC = 0;
-	bool BigData = 0;
+	unsigned int c_fraction = 1;		//number of metachronal wavelengths in simulation
+	unsigned int c_num = 6;				//number of cilia in simulation
+	double Re = 1.0;					//Reynolds number
+	unsigned int XDIM = 288;			//x dimension of simulation region in lattice units
+	unsigned int YDIM = 192;			//y dimension of simulation region in lattice units
+	unsigned int T = 100000;			//time period of cilia beat cycle i lattice units
+	unsigned int T_pow = 1;				//magnitude of time period
+	float T_num = 1.0;					//value of time period
+	unsigned int ITERATIONS = T;		//number of iterations in simulation
+	unsigned int P_num = 100;			//number of data points to output
+	float I_pow = 1.0;					//number of time periods in simulation
+	unsigned int INTERVAL = 500;		//data utput interval
+	unsigned int LENGTH = 96;			//cilium length in lattice units
+	unsigned int c_space = 48;			//space between cilia bases in lattice units
+	bool ShARC = 0;						//runnin on cluster Y/N
+	bool BigData = 0;					//output spatial data Y/N
 
 	if (argc < 11)
 	{
@@ -325,10 +295,10 @@ int main(int argc, char * argv[])
 
 	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData ;
 
-	XDIM = c_num*c_space + 192; //added 192 for 12 micron space
-	T = nearbyint(T_num * pow(10, T_pow));
-	ITERATIONS = T*I_pow; 
-	INTERVAL = ITERATIONS / P_num;
+	XDIM = c_num*c_space;						//x dimension of simulation region in lattice units
+	T = nearbyint(T_num * pow(10, T_pow));		//time period of cilia beat cycle i lattice units
+	ITERATIONS = T*I_pow;						//number of iterations in simulation
+	INTERVAL = ITERATIONS / P_num;				//data output interval
 
 	if (XDIM < 2 * LENGTH)
 	{
@@ -341,16 +311,16 @@ int main(int argc, char * argv[])
 
 	double dx = 1. / LENGTH;
 	double dt = 1. / (T);
-	double  SPEED = 0.8*1000/T;
+	double  SPEED = 0.8*1000/T;					//characteristic speed of simulation
 
 	double t_scale = 1000.*dt*t_0;					//milliseconds
 	double x_scale = 1000000. * dx*l_0;				//microns
 	double s_scale = x_scale / t_scale;		//millimetres per second
 
-	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
-	const double TAU2 = 1. / (12.*(TAU - (1. / 2.))) + (1. / 2.);
+	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;		//relaxation time 1
+	const double TAU2 = 1. / (12.*(TAU - (1. / 2.))) + (1. / 2.);	//relaxation time 2 (Lambda = 1/12)
 
-	time_t rawtime;
+	time_t rawtime;							//runtime parameters
 	struct tm * timeinfo;
 	time(&rawtime);
 	timeinfo = localtime(&rawtime);
@@ -359,23 +329,23 @@ int main(int argc, char * argv[])
 
 	cout << "Initialising...\n";
 
-	unsigned int i(0), j(0), k(0);
+	unsigned int i(0), j(0), k(0);			//iterators
 
-	unsigned int it(0);
-	//int phase(0);
-	int p_step = T * c_fraction / c_num;
+	unsigned int it(0);						//time step number
 
-	float * lasts;
+	int p_step = T * c_fraction / c_num;	//time delay between adjacent cilia beats
+
+	float * lasts;							//position of boundary for previous time step
 	lasts = new float[2 * c_num * 9600];
 
-	float * boundary;
-	boundary = new float[5 * c_num * 9600];
+	float * boundary;						//array of boundary parameters
+	boundary = new float[5 * c_num * 9600];	
 
-	int Np = 96 * c_num;
+	int Np = 96 * c_num;					//number of boundary points in simulation
 	
-	const int size = XDIM*YDIM;
+	const int size = XDIM*YDIM;				//size of simulated region
 
-	for (k = 0; k < c_num*9600; k++)
+	for (k = 0; k < c_num*9600; k++)		//initialise
 	{
 		boundary[5 * k + 0] = 0.;
 		boundary[5 * k + 1] = 0.;
@@ -393,13 +363,13 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 128;
+	int blocksize = 128;				//GPU block size
 
-	int gridsize = size / blocksize;
+	int gridsize = size / blocksize;	//GPU grid size
 
-	int blocksize2 = c_num*LENGTH;
+	int blocksize2 = c_num*LENGTH;		//GPU block size for boundary kernels
 
-	int gridsize2 = 1;
+	int gridsize2 = 1;					//GPU gridsize for boundary kernels 
 
 	if (blocksize2 > 1024)
 	{
@@ -413,38 +383,16 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	int blocksize3 = 48;
-	int gridsize3 = 9600/blocksize3 * c_num;		
+	int blocksize3 = 48;						//GPU block size for boundary definition
+	int gridsize3 = 9600/blocksize3 * c_num;	//GPU grid size for boundary definition	
 
 	cudaError_t cudaStatus;
 
-	double * Q;
+	double * Q;									//Flux
 	cudaMallocHost(&Q, sizeof(double));
 	Q[0] = 0.;
 
-	double ht = 0.;
-	double prox = 0.;
-	bool imp_done = 0;
-	int n = 0;
-	
-
-/*
-	double f_space_1 = 0.;
-	double f_space_2 = 0.;
-	double f_space_3 = 0.;
-	double f_space_4 = 0.;
-	double f_space_5 = 0.;
-	double imp_1 = 0.;
-	double imp_2 = 0.;
-	double imp_3 = 0.;
-	double imp_4 = 0.;
-	double imp_5 = 0.;
-
-	
-	bool done1 = 0;
-*/
-
-	if(ShARC) cudaStatus = cudaSetDevice(3);
+	if(ShARC) cudaStatus = cudaSetDevice(3);	//GPU selection for cluster
 	else cudaStatus = cudaSetDevice(0);
 
 	if (cudaStatus != cudaSuccess) {
@@ -500,13 +448,13 @@ int main(int argc, char * argv[])
 
 	float * F_s;						//BOUNDARY FORCE
 
-	int * epsilon;
+	int * epsilon;						
 
-	s = new float[2 * Ns];
+	s = new float[2 * Ns];				
 
-	u_s = new float[2 * Ns];
+	u_s = new float[2 * Ns];			
 
-	F_s = new float[2 * Ns];
+	F_s = new float[2 * Ns];			
 
 	epsilon = new int[Ns];
 
@@ -518,15 +466,15 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------CREATE DEVICE VARIABLES-----------------------------
 
-	double * d_u;								//VELOCITY VECTOR
+	double * d_u;								
 
-	double * d_rho;							//DENSITY
+	double * d_rho;							
 
-	double * d_f0;							//EQUILIBRIUM DISTRIBUTION FUNCTION
+	double * d_f0;							
 
-	double * d_f;								//DISTRIBUTION FUNCTION
+	double * d_f;								
 
-	double * d_f1;							//POST COLLISION DISTRIBUTION FUNCTION
+	double * d_f1;							
 
 	double * d_centre;
 
@@ -640,11 +588,10 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------DEFINE DIRECTORIES----------------------------------
 	
-	string output_data = "Data/Test/";
+	string output_data = "Data/Test/";														//default output directory
 
-	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
-	else output_data = "C:/Users/phq16ja/Documents/Data/";
-		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
+	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";		//cluster output directory
+	else output_data = "C:/Users/phq16ja/Documents/Data/";									//local output directory
 
 	string raw_data = output_data + "Raw/";
 	raw_data += to_string(c_num);
@@ -658,18 +605,11 @@ int main(int argc, char * argv[])
 	cilia_data += to_string(c_fraction);
 	cilia_data += "/";
 
-	string img_data = output_data + "Img/";
-	img_data += to_string(c_num);
-	img_data += "/";
-	
-
 	string outfile = cilia_data;
 
 	//----------------------------------------BOUNDARY INITIALISATION------------------------------------------------
 
 	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "_" + to_string_3(Re) + "_" + to_string_3(T_num) + "x" + to_string_3(T_pow) + "-flux.dat";
-
-	string impd = output_data + "/Flux/" + to_string(c_space) + "-impedence.dat";
 
 	string parameters = raw_data + "/SimLog.txt";
 
@@ -901,7 +841,7 @@ int main(int argc, char * argv[])
 		cudaEventRecord(cilia_done, c_stream);
 
 		
-			//---------------------------IMMERSED BOUNDARY LATTICE BOLTZMANN STEPS-------------------
+		//---------------------------LATTICE BOLTZMANN---------------------------------------
 
 		cudaEventCreate(&fluid_done);
 
@@ -950,38 +890,10 @@ int main(int argc, char * argv[])
 
 
 
-		//--------------------------IMPEDENCE CALCULATION----------------------
+		
 		cudaEventSynchronize(cilia_done);
 
-		
-		
-
-		if (1.*it / T >= 0.11 && !imp_done)
-		{
-
-			cudaStatus = cudaMemcpy(s, d_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
-			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of s failed!\n"); }
-
-
-			fsD.open(impd.c_str(), ofstream::app);
-
-			fsD << c_fraction *1. / c_num;
-
-			for (n = 1; n <= 7; n++)
-			{
-				prox = proximity(XDIM, c_num, LENGTH, s, n);
-				ht = height(c_num, LENGTH, s, n);
-
-				fsD << "\t" << prox*x_scale << "\t" << ht*x_scale;
-			}
-
-			fsD << endl;
-
-			fsD.close();
-
-			imp_done = 1;
-		}
-		//---------------------------------------------------------------------
+		//---------------------------------IMMERSED BOUNDARY------------------------------------
 		
 		cudaEventDestroy(cilia_done);
 
@@ -1120,6 +1032,8 @@ int main(int argc, char * argv[])
 	fsB << it*t_scale << "\t" << Q[0] * x_scale << endl;
 
 	fsB.close();
+
+	//--------------------------RUNTIME OUTPUT----------------------------------
 	
 	double end = seconds();
 
