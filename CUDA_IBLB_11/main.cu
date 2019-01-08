@@ -590,8 +590,8 @@ int main(int argc, char * argv[])
 	
 	string output_data = "Data/Test/";														//default output directory
 
-	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";		//cluster output directory
-	else output_data = "C:/Users/phq16ja/Documents/Data/";									//local output directory
+	//if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";		//cluster output directory
+	//else output_data = "C:/Users/phq16ja/Documents/Data/";									//local output directory
 
 	string raw_data = output_data + "Raw/";
 	raw_data += to_string(c_num);

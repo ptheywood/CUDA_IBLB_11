@@ -238,11 +238,18 @@ ModelManifest.xml
 # Paket dependency manager
 .paket/paket.exe
 
+#misc flies
+*.dat
+*.pal
+*.gp
+*.py
+*.png
+*.txt
+*.gif
+
 # FAKE - F# Make
 .fake/
 /enc_temp_folder/b37e377cc03b40aa3a5ddc23532fe4f6
-/CUDA_IBLB_11/Data/Test
-/CUDA_IBLB_11/Data
 /enc_temp_folder/73641515e613f05636a2c7266330c06e
 /CUDA_IBLB_11/windows.sh
 /enc_temp_folder/be71b96a55ee1fbcb8136c19907d12af
