@@ -1,0 +1,29 @@
+------CUDA_IBLB_11------
+
+Github link:
+https://github.com/JonHall101/CUDA_IBLB_11/tree/Submission
+
+The program takes 10 arguments: 
+[c_fraction] [c_num] [c_space] [Re] [T_num] [T_pow] [I_num] [P_num] [ShARC] [BigData]
+
+Recommended arguments for test simulations:
+1 6 48 1.0 1 6 1 100 0 1
+
+This program has been written in a combination of CUDA and C++ using the following software versions:
+- Microsift Visual Studio Community 2015 14.0
+- NVIDIA CUDA 8.0
+- NVIDIA Nsight Visual Studio Edition 5.2
+
+The program has been optimised to run on an NVIDIA TESLA K80 graphics card, and will not run on a computer with no graphics card available.
+
+Data is written to '.dat' files that are formated for plotting with gnuplot. Data is written to a directory within CUDA_IBLB_11 by default. This can be changed in 'main.cu'. Subdirectories should be created based on simulation parameters [c_num] and [c_fraction]:
+Data\
+|Test\
+||Raw\
+|||[c_num]\
+||||[c_fraction]\
+||Cilia\
+|||[c_num]\
+||||[c_fraction]\
+||Flux\
+

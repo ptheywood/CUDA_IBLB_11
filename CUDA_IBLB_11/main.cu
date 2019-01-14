@@ -249,37 +249,6 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 
 }
 
-float  proximity(const int XDIM, const int c_num, const int L, const float * s, const int level)
-{
-	int cilium_p = 0;
-	int cilium_m = 0;
-	float prox(0.);
-
-	cilium_p = (0 + level) * L;
-	cilium_m = (c_num - level) * L;
-
-	if(s[2 * (cilium_m + (L - 1)) + 0] > XDIM/2) prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0] - XDIM));
-	else prox = 1.* (s[2 * (cilium_p + (L - 1)) + 0] - (s[2 * (cilium_m + (L - 1)) + 0]));
-
-	return prox;
-
-}
-
-double  height(const int c_num, const int L, const float * s, const int level)
-{
-	int cilium_p = 0;
-	int cilium_m = 0;
-	double ht(0.);
-
-	cilium_p = (0 + level) * L;
-	cilium_m = (c_num - level) * L;
-
-	
-	ht = 0.5 * (s[2 * (cilium_p + (L - 1)) + 1] + s[2 * (cilium_m + (L - 1)) + 1]);
-	
-	return ht;
-
-}
 
 template <typename T>
 std::string to_string_3(const T a_value, const int n = 3)
@@ -346,7 +315,7 @@ int main(int argc, char * argv[])
 	double s_scale = x_scale / t_scale;				//millimetres per second 
 
 	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
-	const double TAU2 = 3. / (16.*(TAU - (1. / 2.))) + (1. / 2.);
+	const double TAU2 = 1. / (4.*(TAU - (1. / 2.))) + (1. / 2.);
 
 	time_t rawtime;
 	struct tm * timeinfo;
@@ -420,26 +389,7 @@ int main(int argc, char * argv[])
 	cudaMallocHost(&Q, sizeof(double));
 	Q[0] = 0.;
 
-	double ht = 0.;
-	double prox = 0.;
-	bool imp_done = 0;
-	
 
-/*
-	double f_space_1 = 0.;
-	double f_space_2 = 0.;
-	double f_space_3 = 0.;
-	double f_space_4 = 0.;
-	double f_space_5 = 0.;
-	double imp_1 = 0.;
-	double imp_2 = 0.;
-	double imp_3 = 0.;
-	double imp_4 = 0.;
-	double imp_5 = 0.;
-
-	
-	bool done1 = 0;
-*/
 
 	if(ShARC) cudaStatus = cudaSetDevice(3);
 	else cudaStatus = cudaSetDevice(0);
@@ -1347,28 +1297,7 @@ int main(int argc, char * argv[])
 
 		cudaStreamWaitEvent(f_stream, cilia_done, 0);
 
-		//--------------------------IMPEDENCE CALCULATION----------------------
 		cudaEventSynchronize(cilia_done);
-
-		if (1.*it / T >= 0.11 && !imp_done)
-		{
-
-			cudaStatus = cudaMemcpy(s, d_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
-			if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of s failed!\n"); }
-
-
-			fsD.open(impd.c_str(), ofstream::app);
-
-			prox = proximity(XDIM, c_num, LENGTH, s, 1);
-			ht = height(c_num, LENGTH, s, 1);
-
-			fsD << c_fraction *1. / c_num << "\t" << prox*x_scale << "\t" << ht*x_scale << endl;
-
-			fsD.close();
-
-			imp_done = 1;
-		}
-		//---------------------------------------------------------------------
 		
 		cudaEventDestroy(cilia_done);
 
