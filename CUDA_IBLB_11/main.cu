@@ -752,30 +752,30 @@ int main(int argc, char * argv[])
 
 		}*/
 
-		if (((j - j%XDIM) / XDIM) < LENGTH*0.95)
+		if (((j - j%XDIM) / XDIM) < YDIM/2.) // LENGTH*0.95
 		{
-			rho_P[j] = 0.8;
-			rho_M[j] = 0.2;
+			rho_P[j] = 0.9;
+			rho_M[j] = 0.1;
 		}
 
-		if (((j - j%XDIM) / XDIM) >= LENGTH*0.95)
+		if (((j - j%XDIM) / XDIM) >= YDIM/2.) // LENGTH*0.95
 		{
-			rho_P[j] = 0.2;
-			rho_M[j] = 0.8;
+			rho_P[j] = 0.1;
+			rho_M[j] = 0.9;
 		}
-/*
-		if (((j - j%XDIM) / XDIM) <= 1)
+
+		if (((j - j%XDIM) / XDIM) <= 80)
 		{
 			rho_P[j] = 1.0;
 			rho_M[j] = 0.0;
 		}
 
-		if (((j - j%XDIM) / XDIM) >= YDIM - 2)
+		if (((j - j%XDIM) / XDIM) >= YDIM - 80)
 		{
 			rho_P[j] = 0.0;
 			rho_M[j] = 1.0;
 		}
-*/
+
 		u[0 * size + j] = 0.0;
 		u[1 * size + j] = 0.0;
 
