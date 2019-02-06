@@ -752,28 +752,28 @@ int main(int argc, char * argv[])
 
 		}*/
 
-		if (((j - j%XDIM) / XDIM) < YDIM/2.) // LENGTH*0.95
+		if (((j - j%XDIM) / XDIM) < LENGTH*0.9) // LENGTH*0.95
 		{
 			rho_P[j] = 0.9;
 			rho_M[j] = 0.1;
 		}
 
-		if (((j - j%XDIM) / XDIM) >= YDIM/2.) // LENGTH*0.95
+		if (((j - j%XDIM) / XDIM) >= LENGTH*0.9) // LENGTH*0.95
 		{
 			rho_P[j] = 0.1;
 			rho_M[j] = 0.9;
 		}
 
-		if (((j - j%XDIM) / XDIM) <= 80)
+		if (((j - j%XDIM) / XDIM) < 80)
 		{
 			rho_P[j] = 1.0;
 			rho_M[j] = 0.0;
 		}
 
-		if (((j - j%XDIM) / XDIM) >= YDIM - 80)
+		if (((j - j%XDIM) / XDIM) < YDIM)
 		{
-			rho_P[j] = 0.0;
-			rho_M[j] = 1.0;
+			rho_P[j] = 1.0;
+			rho_M[j] = 0.0;
 		}
 
 		u[0 * size + j] = 0.0;
@@ -1389,6 +1389,12 @@ int main(int argc, char * argv[])
 				if (cudaStatus != cudaSuccess) {
 					fprintf(stderr, "cudaMemcpy of u failed!\n");
 				}
+
+				cudaStatus = cudaMemcpy(force, d_force, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
+				if (cudaStatus != cudaSuccess) {
+					fprintf(stderr, "cudaMemcpy of u failed!\n");
+				}
+
 				}
 				outfile = raw_data + to_string(it/INTERVAL) + "-fluid.dat";
 
@@ -1405,7 +1411,7 @@ int main(int argc, char * argv[])
 
 					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << psi << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << psi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
@@ -1442,37 +1448,38 @@ int main(int argc, char * argv[])
 
 			cudaEventSynchronize(Q_done);
 
-			/*fsB << it*t_scale << "\t" << Q[0] * x_scale << endl;
-
-			fsB.close();*/
-
-			//------------------------density testing-------------------
-
-			double density = 0;
-			double PCL = 0.;
-			double ML = 0.;
-			double psimax = 0.;
-			double psimin = 0.;
-
-			for (int j = 0; j < size; j++)
-			{
-				float psi = (rho_M[j] - rho_P[j]) / (rho_P[j] + rho_M[j]);
-
-				density += rho[j];
-				PCL += rho_P[j];
-				ML += rho_M[j];
-				if (psi > psimax) psimax = psi;
-				if (psi < psimin) psimin = psi;
-
-			}
-			density /= (size);
-			PCL /= (size);
-			ML /= (size);
-			//----------------------------------------------------------
-
-			fsB << it << "\t" << density << "\t" << psimax << "\t" << psimin << endl;
+			fsB << it*t_scale << "\t" << Q[0] * x_scale << endl;
 
 			fsB.close();
+
+			////------------------------density testing-------------------
+
+			//double density = 0;
+			//double PCL = 0.;
+			//double ML = 0.;
+			//double psimax = 0.;
+			//double psimin = 0.;
+
+			//for (int j = 0; j < size; j++)
+			//{
+			//	float psi = (rho_M[j] - rho_P[j]) / (rho_P[j] + rho_M[j]);
+
+			//	density += rho[j];
+			//	PCL += rho_P[j];
+			//	ML += rho_M[j];
+			//	if (psi > psimax) psimax = psi;
+			//	if (psi < psimin) psimin = psi;
+
+			//}
+			//density /= (size);
+			//PCL /= (size);
+			//ML /= (size);
+
+			//fsB << it << "\t" << density << "\t" << psimax << "\t" << psimin << endl;
+
+			//fsB.close();
+
+			////----------------------------------------------------------
 		}
 
 		if (it == INTERVAL)

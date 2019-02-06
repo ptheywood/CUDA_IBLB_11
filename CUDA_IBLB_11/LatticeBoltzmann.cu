@@ -394,8 +394,6 @@ __global__ void macro(const double * f_P, const double * f_M, const double * for
 
 	int size = XDIM*YDIM;
 
-	//double momentum[2] = { 0,0 };
-
 	{
 		j = threadnum;
 
@@ -403,28 +401,17 @@ __global__ void macro(const double * f_P, const double * f_M, const double * for
 		rho_M[j] = 0.;
 		rho[j] = 0.;
 
-		//u[0 * size + j] = 0.;
-		//u[1 * size + j] = 0.;
-
-		//momentum[0] = 0.;
-		//momentum[1] = 0.;
-
 		for (i = 0; i < 9; i++)
 		{
 			rho_P[j] += f_P[9 * j + i];
 			rho_M[j] += f_M[9 * j + i];
 			
-
-			//momentum[0] += c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
-			//momentum[1] += c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
 		}
 
 		__syncthreads();
 
 		rho[j] = rho_P[j] + rho_M[j];
 
-		//u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
-		//u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
 
 		
 	}
@@ -628,10 +615,10 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	force_GP_M[0] = -1. * psi_M * G_PM * temp[2];
 	force_GP_M[1] = -1. * psi_M * G_PM * temp[3];
 
-	force_P[0 * size + j] = force_GP_P[0] + 1.*(rho_P[j] / rho[j]) * force[0 * size + j] + force_PE[0] + force_PA[0];
-	force_P[1 * size + j] = force_GP_P[1] + 1.*(rho_P[j] / rho[j]) * force[1 * size + j] + force_PE[1] + force_PA[1];
-	force_M[0 * size + j] = force_GP_M[0] + 1.*(rho_M[j] / rho[j]) * force[0 * size + j] + force_ME[0] + force_MA[0];
-	force_M[1 * size + j] = force_GP_M[1] + 1.*(rho_M[j] / rho[j]) * force[1 * size + j] + force_ME[1] + force_MA[1];
+	force_P[0 * size + j] = force_GP_P[0] + 0.1*(rho_P[j] / rho[j]) * force[0 * size + j] + force_PE[0] + force_PA[0];
+	force_P[1 * size + j] = force_GP_P[1] + 0.1*(rho_P[j] / rho[j]) * force[1 * size + j] + force_PE[1] + force_PA[1];
+	force_M[0 * size + j] = force_GP_M[0] + 0.1*(rho_M[j] / rho[j]) * force[0 * size + j] + force_ME[0] + force_MA[0];
+	force_M[1 * size + j] = force_GP_M[1] + 0.1*(rho_M[j] / rho[j]) * force[1 * size + j] + force_ME[1] + force_MA[1];
 
 	__syncthreads();
 
