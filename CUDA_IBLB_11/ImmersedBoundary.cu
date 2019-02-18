@@ -123,8 +123,8 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 			del = d_delta(xs, ys, x, y);
 
-			F_s[2 * k + 0] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 0] - u[0 * size + j]);
-			F_s[2 * k + 1] += 2.*(1. * 1. * del)*rho[j] * (u_s[2 * k + 1] - u[1 * size + j]);
+			F_s[2 * k + 0] += 2.*(1. * 1. * del) * rho[j] * (u_s[2 * k + 0] - u[0 * size + j]);
+			F_s[2 * k + 1] += 2.*(1. * 1. * del) * rho[j] * (u_s[2 * k + 1] - u[1 * size + j]);
 		}
 
 	}
