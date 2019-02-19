@@ -299,7 +299,7 @@ int main(int argc, char * argv[])
 	ITERATIONS = T*I_pow; 
 	INTERVAL = ITERATIONS / P_num;
 
-	if (XDIM < 2 * LENGTH)
+	if (XDIM < 2 * LENGTH )
 	{
 		cout << "not enough cilia in simulation! cilia spacing of " << c_space << " requires at least " << 2 * LENGTH / c_space << " cilia" << endl;
 
@@ -308,7 +308,7 @@ int main(int argc, char * argv[])
 
 	double dx = 1. / LENGTH;
 	double dt = 1. / T;
-	double SPEED = 0.8 * 1000 / T;
+	double SPEED = 13.8 * 128 / T;
 
 	double t_scale = 1000.*dt*t_0;					//milliseconds
 	double x_scale = 1000000. * dx*l_0;				//microns
@@ -737,14 +737,14 @@ int main(int argc, char * argv[])
 
 		if (y < YDIM*0.5) // LENGTH*0.9
 		{
-			rho_P[j] = 0.75;
-			rho_M[j] = 0.25;
+			rho_P[j] = 0.9;
+			rho_M[j] = 0.1;
 		}
 
 		if (y >= YDIM*0.5) // LENGTH*0.9
 		{
-			rho_P[j] = 0.25;
-			rho_M[j] = 0.75;
+			rho_P[j] = 0.1;
+			rho_M[j] = 0.9;
 		}
 
 		/*if (y >= YDIM*0.47 && y < YDIM*0.53) 
@@ -884,6 +884,11 @@ int main(int argc, char * argv[])
 
 
 		cudaStatus = cudaMemcpy(d_Q, Q, sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of Q failed!\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_epsilon, epsilon, Ns*sizeof(int), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of Q failed!\n");
 		}
@@ -1037,6 +1042,7 @@ int main(int argc, char * argv[])
 		cudaStreamWaitEvent(f_stream, Q_done, 0);
 		cudaEventDestroy(Q_done);
 
+		
 
 		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, TAU);					//PCL EQUILIBRIUM STEP
 
@@ -1156,6 +1162,8 @@ int main(int argc, char * argv[])
 */
 		//////////////////////////////////////////////
 
+		
+
 		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU, TAU2, XDIM, YDIM, it);					//PCL COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
@@ -1274,7 +1282,6 @@ int main(int argc, char * argv[])
 		*/
 		//////////////////////////////////////////////
 
-
 		macro << <gridsize, blocksize, 0, f_stream >> > (d_f_P, d_f_M, d_rho_P, d_rho_M, d_rho);			//MACRO STEP
 
 		{
@@ -1293,7 +1300,6 @@ int main(int argc, char * argv[])
 				fprintf(stderr, "binaryforces launch failed: %s\n", cudaGetErrorString(cudaStatus));
 			}
 		}
-
 		
 
 		cudaStreamWaitEvent(f_stream, cilia_done, 0);
@@ -1302,7 +1308,7 @@ int main(int argc, char * argv[])
 		
 		cudaEventDestroy(cilia_done);
 
-		//interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1311,7 +1317,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		//spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
+		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1324,7 +1330,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		//forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, XDIM, YDIM);
+		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, XDIM, YDIM);
 		
 		cudaEventRecord(fluid_done, f_stream);
 		{
@@ -1381,9 +1387,9 @@ int main(int argc, char * argv[])
 					fprintf(stderr, "cudaMemcpy of u failed!\n");
 				}
 
-				cudaStatus = cudaMemcpy(force_M, d_force_M, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
+				cudaStatus = cudaMemcpy(force_P, d_force_P, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "cudaMemcpy of force_M failed!\n");
+					fprintf(stderr, "cudaMemcpy of force_P failed!\n");
 				}
 
 				cudaStatus = cudaMemcpy(force, d_force, 2 * size * sizeof(double), cudaMemcpyDeviceToHost);
@@ -1401,13 +1407,13 @@ int main(int argc, char * argv[])
 					int x = j%XDIM;
 					int y = (j - j%XDIM) / XDIM;
 
-					float psi = (rho_M[j] - rho_P[j]) / (rho_P[j] + rho_M[j]);
+					float phi = (rho_P[j] - rho_M[j]) / (rho_P[j] + rho_M[j]);
 
 					double ab = sqrt(u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]);
 
 					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << psi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j] << "\t" << u[1 * size + j] << "\t" << phi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
@@ -1435,7 +1441,7 @@ int main(int argc, char * argv[])
 
 				for (k = 0; k < Ns; k++)
 				{
-					fsA << s[2 * k + 0]*x_scale << "\t" << s[2 * k + 1]*x_scale << "\t" << u_s[2 * k + 0]*s_scale << "\t" << u_s[2 * k + 1]*s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\n"; //LOOP FOR Np
+					fsA << s[2 * k + 0]*x_scale << "\t" << s[2 * k + 1]*x_scale << "\t" << u_s[2 * k + 0]*s_scale << "\t" << u_s[2 * k + 1]*s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
 					if (k % LENGTH == (LENGTH - 1) || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
 				}
 
@@ -1456,25 +1462,25 @@ int main(int argc, char * argv[])
 			double density = 0;
 			double PCL = 0.;
 			double ML = 0.;
-			double psimax = 0.;
-			double psimin = 0.;
+			double phimax = 0.;
+			double phimin = 0.;
 
 			for (int j = 0; j < size; j++)
 			{
-				float psi = (rho_M[j] - rho_P[j]) / (rho_P[j] + rho_M[j]);
+				float phi = (rho_P[j] - rho_M[j]) / (rho_P[j] + rho_M[j]);
 
 				density += rho[j];
 				PCL += rho_P[j];
 				ML += rho_M[j];
-				if (psi > psimax) psimax = psi;
-				if (psi < psimin) psimin = psi;
+				if (phi > phimax) phimax = phi;
+				if (phi < phimin) phimin = phi;
 
 			}
 			density /= (size);
 			PCL /= (size);
 			ML /= (size);
 
-			fsB << it << "\t" << density << "\t" << psimax << "\t" << psimin << endl;
+			fsB << it << "\t" << density << "\t" << phimax << "\t" << phimin << endl;
 
 			fsB.close();
 

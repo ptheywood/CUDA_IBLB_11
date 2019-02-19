@@ -240,7 +240,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 					if (right) { thru = 1;}
 					break;
 				case 2:
-					if (up) { thrp = 1; /*slip = 1;*/ }
+					if (up) { /*thrp = 1;*/ slip = 1; }
 					break;
 
 				case 3:
@@ -248,30 +248,30 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 					break;
 
 				case 4:
-					if (down) { thrp = 1; /*back = 1;*/ }
+					if (down) { /*thrp = 1;*/ back = 1; }
 					break;
 
 				case 5:
-					if (up && right) { jstream = 0; done = 1; }
-					else if (up) { thrp = 1; /*slip = 1;*/ }
+					//if (up && right) { jstream = 0; done = 1; }
+					if (up) { /*thrp = 1;*/ slip = 1; }
 					else if (right) { thru = 1; }
 					break;
 
 				case 6:
-					if (up && left) { jstream = XDIM - 1; done = 1; }
-					else if (up) { thrp = 1; /*slip = 1;*/ }
+					//if (up && left) { jstream = XDIM - 1; done = 1; }
+					if (up) { /*thrp = 1;*/ slip = 1; }
 					else if (left) { thru = 1; }
 					break;
 
 				case 7:
-					if (down && left) { jstream = XDIM*YDIM - 1; done = 1; }
-					else if (down) { thrp = 1; /*back = 1;*/ }
+					//if (down && left) { jstream = XDIM*YDIM - 1; done = 1; }
+					if (down) { /*thrp = 1;*/ back = 1; }
 					else if (left) { thru = 1; }
 					break;
 
 				case 8:
-					if (down && right) { jstream = XDIM*YDIM - XDIM; done = 1; }
-					else if (down) { thrp = 1; /*back = 1;*/ }
+					//if (down && right) { jstream = XDIM*YDIM - XDIM; done = 1; }
+					if (down) { /*thrp = 1;*/ back = 1; }
 					else if (right) { thru = 1; }
 					break;
 				}
@@ -318,7 +318,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 
 				k = i;
 
-				//printf("\nTHRP!!\n");
+				printf("\nTHRP!!\n");
 			}
 			else if (!done)
 			{
@@ -383,8 +383,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 	double momentum[2];
 
-	double psi_P = 1 - exp(-rho_P[j]);
-	double psi_M = 1 - exp(-rho_M[j]);
+	double psi_P = 1. - exp(-1.*rho_P[j]);
+	double psi_M = 1. - exp(-1.*rho_M[j]);
 	double psi_Pn;
 	double psi_Mn;
 
@@ -404,8 +404,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	force_M[1 * size + j] = 0.;
 
 	double G_PE = 0; //-1
-	double G_PA = 0;
-	double G_ME = 0;
+	double G_PA = 1;
+	double G_ME = 1;
 	double G_MA = 0; //-1
 
 	int x = j%XDIM;
@@ -441,8 +441,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 			case 2:
 				if (up)
 				{
-					//air = 1;
-					next = j - (YDIM - 1)*XDIM;
+					air = 1;
+					//next = j - (YDIM - 1)*XDIM;
 					done = 1;
 				}
 				break;
@@ -458,8 +458,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 				if (down)
 				{
-					//epi = 1;
-					next = j + (YDIM - 1)*XDIM;
+					epi = 1;
+					//next = j + (YDIM - 1)*XDIM;
 					done = 1;
 				}
 				break;
@@ -467,8 +467,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 				if (up)
 				{
-					//air = 1;
-					next = j - (YDIM - 1)*XDIM;
+					air = 1;
+					//next = j - (YDIM - 1)*XDIM;
 					done = 1;
 				}
 				else if (right)
@@ -482,8 +482,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 				if (up)
 				{
-					//air = 1;
-					next = j - (YDIM - 1)*XDIM;
+					air = 1;
+					//next = j - (YDIM - 1)*XDIM;
 					done = 1;
 				}
 				else if (left)
@@ -497,8 +497,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 				if (down)
 				{
-					//epi = 1;
-					next = j + (YDIM - 1)*XDIM;
+					epi = 1;
+					//next = j + (YDIM - 1)*XDIM;
 					done = 1;
 				}
 				else if (left)
@@ -512,8 +512,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 				if (down)
 				{
-					//epi = 1;
-					next = j + (YDIM - 1)*XDIM;
+					epi = 1;
+					//next = j + (YDIM - 1)*XDIM;
 					done = 1;
 				}
 				else if (right)
@@ -547,10 +547,10 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 			force_MA[0] += -1. * rho_M[j] * G_MA * t[i] * c_l[i * 2 + 0];
 			force_MA[1] += -1. * rho_M[j] * G_MA * t[i] * c_l[i * 2 + 1];
 		}
-		else if (i != 0)
+		else
 		{
-			psi_Pn = 1. - exp(-rho_P[next]);
-			psi_Mn = 1. - exp(-rho_M[next]);
+			psi_Pn = 1. - exp(-1.*rho_P[next]);
+			psi_Mn = 1. - exp(-1.*rho_M[next]);
 
 			temp[0] += 1.* t[i] * psi_Mn * c_l[i * 2 + 0];
 			temp[1] += 1.* t[i] * psi_Mn * c_l[i * 2 + 1];
@@ -562,15 +562,15 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 	}
 
-	force_GP_P[0] = -1. * psi_P * G_PM * temp[0];
-	force_GP_P[1] = -1. * psi_P * G_PM * temp[1];
-	force_GP_M[0] = -1. * psi_M * G_PM * temp[2];
-	force_GP_M[1] = -1. * psi_M * G_PM * temp[3];
+	temp[0] *= -1. * psi_P * G_PM;
+	temp[1] *= -1. * psi_P * G_PM;
+	temp[2] *= -1. * psi_M * G_PM;
+	temp[3] *= -1. * psi_M * G_PM;
 
-	force_P[0 * size + j] = force_GP_P[0] + force_PE[0] + force_PA[0];
-	force_P[1 * size + j] = force_GP_P[1] + force_PE[1] + force_PA[1];
-	force_M[0 * size + j] = force_GP_M[0] + force_ME[0] + force_MA[0];
-	force_M[1 * size + j] = force_GP_M[1] + force_ME[1] + force_MA[1];
+	force_P[0 * size + j] += 1. * temp[0] + force_PE[0] + force_PA[0];
+	force_P[1 * size + j] += 1. * temp[1] + force_PE[1] + force_PA[1];
+	force_M[0 * size + j] += 1. * temp[2] + force_ME[0] + force_MA[0];
+	force_M[1 * size + j] += 1. * temp[3] + force_ME[1] + force_MA[1];
 
 	__syncthreads();
 
@@ -587,10 +587,12 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 			momentum[1] += 1.*c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
 		}
 	
-	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0] + force_M[0])) / rho[j];
-	u[1 * size + j] = (momentum[1] + 0.5*(force_P[1] + force_M[1])) / rho[j];
+	u[0 * size + j] = 1.*(momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / (1.*rho[j]);
+	u[1 * size + j] = 1.*(momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / (1.*rho[j]);
 
 	__syncthreads();
+
+	//if (j == size / 2) printf("\n u_y[mid] = %f \n", f_P[9 * j + 2]);
 
 
 }
@@ -608,14 +610,14 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	double momentum[2];
 	double spd(0.);
 
-	double psi_P = 1 - exp(-rho_P[j]);
-	double psi_M = 1 - exp(-rho_M[j]);
+	double psi_P = 1. - exp(-1.*rho_P[j]);
+	double psi_M = 1. - exp(-1.*rho_M[j]);
 	
 
-	force_P[0 * size + j] += 1.*(rho_P[j] / rho[j]) * force[0 * size + j];
-	force_P[1 * size + j] += 1.*(rho_P[j] / rho[j]) * force[1 * size + j];
-	force_M[0 * size + j] += 1.*(rho_M[j] / rho[j]) * force[0 * size + j];
-	force_M[1 * size + j] += 1.*(rho_M[j] / rho[j]) * force[1 * size + j];
+	force_P[0 * size + j] += 1.*(rho_P[j] / (1.*rho[j])) * force[0 * size + j];
+	force_P[1 * size + j] += 1.*(rho_P[j] / (1.*rho[j])) * force[1 * size + j];
+	force_M[0 * size + j] += 1.*(rho_M[j] / (1.*rho[j])) * force[0 * size + j];
+	force_M[1 * size + j] += 1.*(rho_M[j] / (1.*rho[j])) * force[1 * size + j];
 
 	__syncthreads();
 
@@ -631,8 +633,8 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 		momentum[1] += 1.*c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
 	}
 
-	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0] + force_M[0])) / rho[j];			
-	u[1 * size + j] = (momentum[1] + 0.5*(force_P[1] + force_M[1])) / rho[j];
+	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
+	u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
 
 	__syncthreads();
 
@@ -643,5 +645,7 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	}
 
 	__syncthreads();
+
+	//if (j == XDIM*1.5) printf("\n force_x[mid] = %f \n", force[0 * size + j]);
 
 }

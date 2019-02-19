@@ -7,7 +7,7 @@
 #include "ImmersedBoundary.cuh"
 #include "device_functions.h"
 
-#define PI 3.14159
+#define PI 3.1415
 //__device__ const double RHO_0 = 1.;
 //__device__ const double C_S = 0.57735;
 
