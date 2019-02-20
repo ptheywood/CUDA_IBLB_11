@@ -597,7 +597,7 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 }
 
-__global__ void forces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, const double * force, double * force_P, double * force_M, double * u, double * Q, int XDIM, int YDIM)
+__global__ void forces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, const double * force, double * force_P, double * force_M, double * u, double * Q, double * Q_M, int XDIM, int YDIM)
 {
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -609,6 +609,8 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 
 	double momentum[2];
 	double spd(0.);
+
+	double M_flux = 0.;
 
 	double psi_P = 1. - exp(-1.*rho_P[j]);
 	double psi_M = 1. - exp(-1.*rho_M[j]);
@@ -631,6 +633,8 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	{
 		momentum[0] += 1.*c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
 		momentum[1] += 1.*c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
+
+		M_flux += 1.*c_l[i * 2 + 0] *f_M[9 * j + i];
 	}
 
 	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
@@ -641,7 +645,10 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	if (j%XDIM == XDIM - 5)
 	{
 		spd = u[0 * size + j] / YDIM;
+		M_flux /= YDIM;
+
 		DoubleAtomicAdd(Q, spd);
+		DoubleAtomicAdd(Q_M, M_flux);
 	}
 
 	__syncthreads();

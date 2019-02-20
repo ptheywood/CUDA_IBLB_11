@@ -77,9 +77,11 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 {
 	int n(0), j(0);
 
-	int f_length = 9600;
-
 	int length = 96;
+
+	int f_length = length * 100;
+
+	int l_max = int(length * 1.16);
 
 	float arcl(0.);
 	int phase(0.);
@@ -133,14 +135,14 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 
 		}
 
-		s[5 * (k + m * f_length) + 0] = 1. * 111 * a_n[2 * 0 + 0] * 0.5 + offset;
-		s[5 * (k + m * f_length) + 1] = 1. * 111 * a_n[2 * 0 + 1] * 0.5;
-		s[5 * (k + m * f_length) + 2] = 111 * arcl;
+		s[5 * (k + m * f_length) + 0] = 1. * l_max * a_n[2 * 0 + 0] * 0.5 + offset;
+		s[5 * (k + m * f_length) + 1] = 1. * l_max * a_n[2 * 0 + 1] * 0.5;
+		s[5 * (k + m * f_length) + 2] = l_max * arcl;
 
 		for (n = 1; n < 7; n++)
 		{
-			s[5 * (k + m * f_length) + 0] += 1. * 111 * (a_n[2 * n + 0] * cos(n*2.*PI*phase / T) + b_n[2 * n + 0] * sin(n*2.*PI*phase / T));
-			s[5 * (k + m * f_length) + 1] += 1. * 111 * (a_n[2 * n + 1] * cos(n*2.*PI*phase / T) + b_n[2 * n + 1] * sin(n*2.*PI*phase / T));
+			s[5 * (k + m * f_length) + 0] += 1. * l_max * (a_n[2 * n + 0] * cos(n*2.*PI*phase / T) + b_n[2 * n + 0] * sin(n*2.*PI*phase / T));
+			s[5 * (k + m * f_length) + 1] += 1. * l_max * (a_n[2 * n + 1] * cos(n*2.*PI*phase / T) + b_n[2 * n + 1] * sin(n*2.*PI*phase / T));
 		}
 
 		if (it > 0)
@@ -308,7 +310,7 @@ int main(int argc, char * argv[])
 
 	double dx = 1. / LENGTH;
 	double dt = 1. / T;
-	double SPEED = 13.8 * 128 / T;
+	double SPEED = 13.6 * 128 / T;
 
 	double t_scale = 1000.*dt*t_0;					//milliseconds
 	double x_scale = 1000000. * dx*l_0;				//microns
@@ -388,6 +390,10 @@ int main(int argc, char * argv[])
 	double * Q;
 	cudaMallocHost(&Q, sizeof(double));
 	Q[0] = 0.;
+
+	double * Q_M;
+	cudaMallocHost(&Q_M, sizeof(double));
+	Q_M[0] = 0.;
 
 
 
@@ -539,6 +545,8 @@ int main(int argc, char * argv[])
 
 	double * d_Q;
 
+	double * d_Q_M;
+
 	
 
 	float * d_lasts;
@@ -627,6 +635,11 @@ int main(int argc, char * argv[])
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_Q, sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc failed!");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_Q_M, sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc failed!");
 		}
@@ -735,13 +748,13 @@ int main(int argc, char * argv[])
 		int y = ((j - j%XDIM) / XDIM);
 		
 
-		if (y < YDIM*0.5) // LENGTH*0.9
+		if (y < LENGTH*0.9) // LENGTH*0.9
 		{
 			rho_P[j] = 0.9;
 			rho_M[j] = 0.1;
 		}
 
-		if (y >= YDIM*0.5) // LENGTH*0.9
+		if (y >= LENGTH*0.9) // LENGTH*0.9
 		{
 			rho_P[j] = 0.1;
 			rho_M[j] = 0.9;
@@ -884,6 +897,11 @@ int main(int argc, char * argv[])
 
 
 		cudaStatus = cudaMemcpy(d_Q, Q, sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of Q failed!\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_Q_M, Q_M, sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of Q failed!\n");
 		}
@@ -1330,7 +1348,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, XDIM, YDIM);
+		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_M, XDIM, YDIM);
 		
 		cudaEventRecord(fluid_done, f_stream);
 		{
@@ -1348,6 +1366,11 @@ int main(int argc, char * argv[])
 			cudaStreamWaitEvent(o_stream, fluid_done, 0);
 
 			cudaStatus = cudaMemcpyAsync(Q, d_Q, sizeof(double), cudaMemcpyDeviceToHost, o_stream);
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMemcpy of u failed!\n");
+			}
+
+			cudaStatus = cudaMemcpyAsync(Q_M, d_Q_M, sizeof(double), cudaMemcpyDeviceToHost, o_stream);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of u failed!\n");
 			}
@@ -1413,7 +1436,7 @@ int main(int argc, char * argv[])
 
 					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j] << "\t" << u[1 * size + j] << "\t" << phi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << phi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
@@ -1480,7 +1503,7 @@ int main(int argc, char * argv[])
 			PCL /= (size);
 			ML /= (size);
 
-			fsB << it << "\t" << density << "\t" << phimax << "\t" << phimin << endl;
+			fsB << it << "\t" << density << "\t" << phimax << "\t" << phimin << "\t" << Q[0]*x_scale << "\t" << Q_M[0] * x_scale << endl;
 
 			fsB.close();
 
