@@ -73,11 +73,11 @@ __constant__ double B_mn[7 * 2 * 3] =
 	0.0,	 0.339,	-0.327,	-0.114,	-0.105,	-0.057,	-0.055
 };
 
-__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, float * s, float * lasts, float * b_points)
+__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, float * s, float * lasts, float * b_points, int length)
 {
 	int n(0), j(0);
 
-	int length = 96;
+	//int length = 128;
 
 	int f_length = length * 100;
 
@@ -173,11 +173,11 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 	}
 }
 
-__global__ void boundary_check(const double c_space, const int c_num, const int XDIM, const int it, const float *  b_points,  float * s, float * u_s, int * epsilon)
+__global__ void boundary_check(const double c_space, const int c_num, const int XDIM, const int it, const float *  b_points,  float * s, float * u_s, int * epsilon, int length)
 {
 	int r(0), j(0), l(0), m(0);
 
-	int length = 96;
+	//int length = 128;
 
 	bool xclose = 0;
 	bool yclose = 0;
@@ -301,7 +301,7 @@ int main(int argc, char * argv[])
 	ITERATIONS = T*I_pow; 
 	INTERVAL = ITERATIONS / P_num;
 
-	if (XDIM < 2 * LENGTH )
+	if (XDIM < 2 * LENGTH)
 	{
 		cout << "not enough cilia in simulation! cilia spacing of " << c_space << " requires at least " << 2 * LENGTH / c_space << " cilia" << endl;
 
@@ -310,14 +310,14 @@ int main(int argc, char * argv[])
 
 	double dx = 1. / LENGTH;
 	double dt = 1. / T;
-	double SPEED = 13.6 * 128 / T;
+	double SPEED = 1000./T; //1740.8
 
 	double t_scale = 1000.*dt*t_0;					//milliseconds
 	double x_scale = 1000000. * dx*l_0;				//microns
 	double s_scale = x_scale / t_scale;				//millimetres per second 
 
 	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
-	const double TAU2 = 1. / (4.*(TAU - (1. / 2.))) + 1. / 2.;    //lamda = 1/4
+	const double TAU2 = 1. / (4.*(TAU - (1. / 2.))) + 1. / 2.;    //lamda = 1/4 most stable, 1/12 for optimal results
 
 	time_t rawtime;
 	struct tm * timeinfo;
@@ -778,6 +778,9 @@ int main(int argc, char * argv[])
 			rho_M[j] = 1.0;
 		}*/
 
+		rho_P[j] = 1.;
+		rho_M[j] = 0.;
+
 		u[0 * size + j] = 0.0;
 		u[1 * size + j] = 0.0;
 
@@ -1033,7 +1036,7 @@ int main(int argc, char * argv[])
 
 		cudaEventCreate(&cilia_done);
 
-		define_filament << <gridsize3, blocksize3, 0, c_stream >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points);
+		define_filament << <gridsize3, blocksize3, 0, c_stream >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points, LENGTH);
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1043,7 +1046,7 @@ int main(int argc, char * argv[])
 		cudaStreamWaitEvent(c_stream, fluid_done, 0);
 		cudaEventDestroy(fluid_done);
 
-		boundary_check << <gridsize2, blocksize2, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon);
+		boundary_check << <gridsize2, blocksize2, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon, LENGTH);
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1326,7 +1329,7 @@ int main(int argc, char * argv[])
 		
 		cudaEventDestroy(cilia_done);
 
-		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
+		//interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1335,7 +1338,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
+		//spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1348,7 +1351,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_M, XDIM, YDIM);
+		//forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_M, XDIM, YDIM);
 		
 		cudaEventRecord(fluid_done, f_stream);
 		{
@@ -1436,7 +1439,7 @@ int main(int argc, char * argv[])
 
 					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j]*s_scale << "\t" << phi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j] << "\t" << u[1 * size + j] << "\t" << phi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;

@@ -38,7 +38,7 @@ __device__ void DoubleAtomicAdd(double* address, double val)
 	} while (assumed != old);
 }
 
-__global__ void equilibrium(const double * u, const double * rho, double * f0, const double * force, double * F, int XDIM, int YDIM, double TAU)
+__global__ void equilibrium(const double * u, const double * rho, double * f0, const double * force, double * F, const int XDIM, const int YDIM, const double TAU)
 {
 	unsigned int i(0), j(0);
 
@@ -60,15 +60,15 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) * (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (2 * C_S*C_S*C_S*C_S)
 				- (u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]) / (2 * C_S*C_S));
 			
-/*
+
 			vec[0] = (c_l[i * 2 + 0] - u[0 * size + j]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 0];
 			vec[1] = (c_l[i * 2 + 1] - u[1 * size + j]) / (C_S*C_S) + (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j]) / (C_S*C_S*C_S*C_S) * c_l[i * 2 + 1];
-*/
+/*
 			vec[0] = c_l[i * 2 + 0] / (C_S*C_S) + ( (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j])*c_l[i * 2 + 0] - C_S*C_S*u[0 * size + j] ) / (C_S*C_S*C_S*C_S);
 			vec[1] = c_l[i * 2 + 1] / (C_S*C_S) + ( (c_l[i * 2 + 0] * u[0 * size + j] + c_l[i * 2 + 1] * u[1 * size + j])*c_l[i * 2 + 1] - C_S*C_S*u[1 * size + j] ) / (C_S*C_S*C_S*C_S);
+*/
 
-
-			F[9 * j + i] = (1. - 1. / (2. * TAU)) * t[i] * (vec[0] * force[0 * size + j] + vec[1] * force[1 * size + j]);
+			F[9 * j + i] = t[i] * (1. - 1. / (2. * TAU)) * (vec[0] * force[0 * size + j] + vec[1] * force[1 * size + j]);
 			
 		}
 	}
@@ -84,8 +84,8 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 	//double u_set[2] = { 0.00004,0. };
 	//double u_s[2] = { 0.,0. };
 
-	double omega_plus = 1 / TAU;
-	double omega_minus = 1 / TAU2;
+	double omega_plus = 1. / TAU;
+	double omega_minus = 1. / TAU2;
 
 
 	double f_plus(0.), f_minus(0.), f0_plus(0.), f0_minus(0.);
