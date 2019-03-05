@@ -7,7 +7,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 
 __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM);
 
-__global__ void macro(const double * f_P, const double * f_M, double * rho_P, double * rho_M, double * rho);
+__global__ void macro(const double * f_P, const double * f_M, double * rho_P, double * rho_M, double * rho, double * u, int XDIM, int YDIM);
 
 __global__ void binaryforces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, double * force_P, double * force_M, double * u, int XDIM, int YDIM, const float G_PM);
 

@@ -280,7 +280,8 @@ int main(int argc, char * argv[])
 	unsigned int c_space = 48;
 	bool ShARC = 0;
 	bool BigData = 0;
-	float G_PM = 1.;
+	float G_PM = 5.;
+	int N_comp = 1.;
 
 	if (argc < 11)
 	{
@@ -294,7 +295,7 @@ int main(int argc, char * argv[])
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
 		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10] << ' ' << argv[11];
 
-	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData >> G_PM ;
+	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData >> N_comp ;
 
 	XDIM = c_num*c_space;
 	T = nearbyint(T_num * pow(10, T_pow));
@@ -579,40 +580,20 @@ int main(int argc, char * argv[])
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of rho_P failed!");
 		}
-
-		cudaStatus = cudaMalloc((void**)&d_rho_M, size * sizeof(double));
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of rho_M failed\n");
-		}
-
+		
 		cudaStatus = cudaMalloc((void**)&d_f0_P, 9 * size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of f0_P failed\n");
 		}
-
-		cudaStatus = cudaMalloc((void**)&d_f0_M, 9 * size * sizeof(double));
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of f0_M failed\n");
-		}
-
+		
 		cudaStatus = cudaMalloc((void**)&d_f_P, 9 * size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of f_P failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_f_M, 9 * size * sizeof(double));
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of f_M failed\n");
-		}
-
 		cudaStatus = cudaMalloc((void**)&d_f1_P, 9 * size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of f1_P failed\n");
-		}
-
-		cudaStatus = cudaMalloc((void**)&d_f1_M, 9 * size * sizeof(double));
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of f1_M failed\n");
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_force, 2 * size * sizeof(double));
@@ -625,27 +606,12 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMalloc of force_P failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_force_M, 2 * size * sizeof(double));
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc of force_M failed\n");
-		}
-
 		cudaStatus = cudaMalloc((void**)&d_F_P, 9 * size * sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc F_P failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_F_M, 9 * size * sizeof(double));
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc F_M failed\n");
-		}
-
 		cudaStatus = cudaMalloc((void**)&d_Q, sizeof(double));
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
-		}
-
-		cudaStatus = cudaMalloc((void**)&d_Q_M, sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc failed!");
 		}
@@ -654,6 +620,43 @@ int main(int argc, char * argv[])
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc failed!");
 		}
+
+		
+			cudaStatus = cudaMalloc((void**)&d_rho_M, size * sizeof(double));
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMalloc of rho_M failed\n");
+			}
+
+			cudaStatus = cudaMalloc((void**)&d_f0_M, 9 * size * sizeof(double));
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMalloc of f0_M failed\n");
+			}
+
+			cudaStatus = cudaMalloc((void**)&d_f_M, 9 * size * sizeof(double));
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMalloc of f_M failed\n");
+			}
+
+			cudaStatus = cudaMalloc((void**)&d_f1_M, 9 * size * sizeof(double));
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMalloc of f1_M failed\n");
+			}
+
+			cudaStatus = cudaMalloc((void**)&d_force_M, 2 * size * sizeof(double));
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMalloc of force_M failed\n");
+			}
+
+			cudaStatus = cudaMalloc((void**)&d_F_M, 9 * size * sizeof(double));
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMalloc F_M failed\n");
+			}
+
+			cudaStatus = cudaMalloc((void**)&d_Q_M, sizeof(double));
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMalloc failed!");
+			}
+		
 
 	}
 
@@ -758,17 +761,25 @@ int main(int argc, char * argv[])
 
 		int y = ((j - j%XDIM) / XDIM);
 		
-
-		if (y < LENGTH*0.9) // LENGTH*0.9
+		if (N_comp == 2)
 		{
-			rho_P[j] = 0.9;
-			rho_M[j] = 0.1;
+
+			if (y < LENGTH*0.9)
+			{
+				rho_P[j] = 0.9;
+				rho_M[j] = 0.1;
+			}
+
+			if (y >= LENGTH*0.9)
+			{
+				rho_P[j] = 0.1;
+				rho_M[j] = 0.9;
+			}
 		}
-
-		if (y >= LENGTH*0.9) // LENGTH*0.9
+		else
 		{
-			rho_P[j] = 0.1;
-			rho_M[j] = 0.9;
+			rho_P[j] = 1.;
+			rho_M[j] = 0.;
 		}
 
 		/*if (y >= YDIM*0.47 && y < YDIM*0.53) 
@@ -935,7 +946,7 @@ int main(int argc, char * argv[])
 
 	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, TAU);				//PCL INITIAL EQUILIBRIUM SET
 
-	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU);				//PCL INITIAL EQUILIBRIUM SET
+	if (N_comp == 2) equilibrium << <gridsize, blocksize >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU);				//PCL INITIAL EQUILIBRIUM SET
 
 	{																										// Check for any errors launching the kernel
 		cudaStatus = cudaGetLastError();
@@ -967,7 +978,8 @@ int main(int argc, char * argv[])
 		{
 			f_P[9 * j + i] = f0_P[9 * j + i];
 
-			f_M[9 * j + i] = f0_M[9 * j + i];
+			if (N_comp == 2) f_M[9 * j + i] = f0_M[9 * j + i];
+			else f_M[9 * j + i] = 0.;
 		}
 	}
 
@@ -976,11 +988,13 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "second cudaMemcpy of f_P failed\n");
 	}
 
-	cudaStatus = cudaMemcpy(d_f_M, f_M, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "second cudaMemcpy of f_M failed\n");
+	if (N_comp == 2)
+	{
+		cudaStatus = cudaMemcpy(d_f_M, f_M, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "second cudaMemcpy of f_M failed\n");
+		}
 	}
-
 
 
 	//-----------------------------------------------------OUTPUT PARAMETERS------------------------------------------------------------------------
@@ -1088,7 +1102,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU);					//MUCUS EQUILIBRIUM STEP
+		if (N_comp == 2) equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU);					//MUCUS EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1208,7 +1222,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU, XDIM, YDIM);					// MUCUS COLLISION STEP
+		if (N_comp == 2) collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU, XDIM, YDIM);					// MUCUS COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1267,7 +1281,7 @@ int main(int argc, char * argv[])
 
 		}
 
-		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_M, d_f_M, XDIM, YDIM);												//MUCUS STREAMING STEP
+		if (N_comp == 2) streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_M, d_f_M, XDIM, YDIM);												//MUCUS STREAMING STEP
 
 		{																											
 			cudaStatus = cudaGetLastError();
@@ -1317,7 +1331,7 @@ int main(int argc, char * argv[])
 		*/
 		//////////////////////////////////////////////
 
-		macro << <gridsize, blocksize, 0, f_stream >> > (d_f_P, d_f_M, d_rho_P, d_rho_M, d_rho);			//MACRO STEP
+		macro << <gridsize, blocksize, 0, f_stream >> > (d_f_P, d_f_M, d_rho_P, d_rho_M, d_rho, d_u, XDIM, YDIM);			//MACRO STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1328,6 +1342,7 @@ int main(int argc, char * argv[])
 		}
 
 		binaryforces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force_P, d_force_M, d_u, XDIM, YDIM, G_PM);
+		
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1352,7 +1367,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
+		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);						//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();

@@ -339,7 +339,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 
 }
 
-__global__ void macro(const double * f_P, const double * f_M, double * rho_P, double * rho_M, double * rho)
+__global__ void macro(const double * f_P, const double * f_M, double * rho_P, double * rho_M, double * rho, double * u, int XDIM, int YDIM)
 {
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -349,18 +349,31 @@ __global__ void macro(const double * f_P, const double * f_M, double * rho_P, do
 	{
 		j = threadnum;
 
+		int size = XDIM*YDIM;
+
 		rho[j] = 0;
 
 		rho_P[j] = 0.;
 		rho_M[j] = 0.;
 
+		double momentum[2] = { 0.,0. };
+
+		u[0 * size + j] = 0.;
+		u[1 * size + j] = 0.;
+
 		for (i = 0; i < 9; i++)
 		{
 			rho_P[j] += f_P[9 * j + i];
 			rho_M[j] += f_M[9 * j + i];
+
+			momentum[0] += 1.*c_l[i * 2 + 0] * (f_P[9 * j + i]);
+			momentum[1] += 1.*c_l[i * 2 + 1] * (f_P[9 * j + i]);
 		}
 
 		rho[j] = rho_P[j] + rho_M[j];
+
+		u[0 * size + j] = 1.*(momentum[0]) / (1.*rho[j]);
+		u[1 * size + j] = 1.*(momentum[1]) / (1.*rho[j]);
 	}
 
 	__syncthreads();
