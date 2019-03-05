@@ -44,7 +44,7 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
-	double vec[2] = { 0,0 };
+	double vec[2] = { 0.,0. };
 
 	int size = XDIM*YDIM;
 
@@ -54,8 +54,9 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 
 		for (i = 0; i < 9; i++)
 		{
+			F[9 * j + i] = 0.;
 			
-			f0[9 * j + i] = rho[j] * t[i] * (1
+			f0[9 * j + i] = rho[j] * t[i] * (1.
 				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (C_S*C_S)
 				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) * (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (2 * C_S*C_S*C_S*C_S)
 				- (u[0 * size + j] * u[0 * size + j] + u[1 * size + j] * u[1 * size + j]) / (2 * C_S*C_S));
@@ -76,29 +77,32 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 	__syncthreads();
 }
 
-__global__ void collision(const double * f0, const double * f, double * f1, const double * F, double TAU, double TAU2, int XDIM, int YDIM, int it)
+__global__ void collision(const double * f0, const double * f, double * f1, const double * F, double TAU, int XDIM, int YDIM)
 {
-	unsigned int j(0);
+	unsigned int j(0), i(0);
 
 	//double rho_set = 1.;
 	//double u_set[2] = { 0.00004,0. };
 	//double u_s[2] = { 0.,0. };
 
-	double omega_plus = 1. / TAU;
-	double omega_minus = 1. / TAU2;
+	//double omega_plus = 1. / TAU;
+	//double omega_minus = 1. / TAU2;
 
 
-	double f_plus(0.), f_minus(0.), f0_plus(0.), f0_minus(0.);
+	//double f_plus(0.), f_minus(0.), f0_plus(0.), f0_minus(0.);
 
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
 	{
 		j = threadnum;
 
+		for (i = 0 ; i < 9 ; i++)
 		{
-			//f1[9 * j + i] = (1 - (1 / TAU[0]))*f[9 * j + i] + (1 / TAU[0])*f0[9 * j + i] + F[j * 9 + i];
+			f1[9 * j + i] = (1 - (1 / TAU))*f[9 * j + i] + (1 / TAU)*f0[9 * j + i] + F[j * 9 + i];
 
-			f1[9 * j + 0] = f[9 * j + 0] - omega_plus*(f[9 * j + 0] - f0[9 * j + 0]);
+
+			// TRT method
+			/*f1[9 * j + 0] = f[9 * j + 0] - omega_plus*(f[9 * j + 0] - f0[9 * j + 0]) + F[9 * j + 0];
 
 			f_plus = (f[9 * j + 1] + f[9 * j + 3]) / 2.;
 			f_minus = (f[9 * j + 1] - f[9 * j + 3]) / 2.;
@@ -146,7 +150,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f_minus *= -1.;
 			f0_minus *= -1.;
 
-			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 8];
+			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 8];*/
 
 		}
 
@@ -390,8 +394,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 	bool up(0), down(0), left(0), right(0), epi(0), air(0), done(0);
 
-	double force_GP_P[2] = { 0.,0. };
-	double force_GP_M[2] = { 0.,0. };
+	//double force_GP_P[2] = { 0.,0. };
+	//double force_GP_M[2] = { 0.,0. };
 
 	double force_PE[2] = { 0.,0. };
 	double force_PA[2] = { 0.,0. };
@@ -403,10 +407,10 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	force_M[0 * size + j] = 0.;
 	force_M[1 * size + j] = 0.;
 
-	double G_PE = 0; //-1
-	double G_PA = 1;
-	double G_ME = 1;
-	double G_MA = 0; //-1
+	double G_PE = 0;
+	double G_PA = 1.;	//1.
+	double G_ME = 1.;	//1.
+	double G_MA = 0; 
 
 	int x = j%XDIM;
 	int y = (j - j%XDIM) / XDIM;
@@ -533,19 +537,19 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 		if (epi)
 		{
-			force_PE[0] += -1. * rho_P[j] * G_PE * t[i] * c_l[i * 2 + 0];
-			force_PE[1] += -1. * rho_P[j] * G_PE * t[i] * c_l[i * 2 + 1];
+			force_PE[0] += -1. * psi_P * G_PE * t[i] * c_l[i * 2 + 0];
+			force_PE[1] += -1. * psi_P * G_PE * t[i] * c_l[i * 2 + 1];
 
-			force_ME[0] += -1. * rho_M[j] * G_ME * t[i] * c_l[i * 2 + 0];
-			force_ME[1] += -1. * rho_M[j] * G_ME * t[i] * c_l[i * 2 + 1];
+			force_ME[0] += -1. * psi_M * G_ME * t[i] * c_l[i * 2 + 0];
+			force_ME[1] += -1. * psi_M * G_ME * t[i] * c_l[i * 2 + 1];
 		}
 		else if (air)
 		{
-			force_PA[0] += -1. * rho_P[j] * G_PA * t[i] * c_l[i * 2 + 0];
-			force_PA[1] += -1. * rho_P[j] * G_PA * t[i] * c_l[i * 2 + 1];
+			force_PA[0] += -1. * psi_P * G_PA * t[i] * c_l[i * 2 + 0];
+			force_PA[1] += -1. * psi_P * G_PA * t[i] * c_l[i * 2 + 1];
 
-			force_MA[0] += -1. * rho_M[j] * G_MA * t[i] * c_l[i * 2 + 0];
-			force_MA[1] += -1. * rho_M[j] * G_MA * t[i] * c_l[i * 2 + 1];
+			force_MA[0] += -1. * psi_M * G_MA * t[i] * c_l[i * 2 + 0];
+			force_MA[1] += -1. * psi_M * G_MA * t[i] * c_l[i * 2 + 1];
 		}
 		else
 		{
@@ -597,7 +601,7 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 }
 
-__global__ void forces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, const double * force, double * force_P, double * force_M, double * u, double * Q, double * Q_M, int XDIM, int YDIM)
+__global__ void forces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, const double * force, double * force_P, double * force_M, double * u, double * Q, double * Q_P, double * Q_M, int XDIM, int YDIM)
 {
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -610,6 +614,7 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	double momentum[2];
 	double spd(0.);
 
+	double P_flux = 0.;
 	double M_flux = 0.;
 
 	double psi_P = 1. - exp(-1.*rho_P[j]);
@@ -634,7 +639,8 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 		momentum[0] += 1.*c_l[i * 2 + 0] * (f_P[9 * j + i] + f_M[9 * j + i]);
 		momentum[1] += 1.*c_l[i * 2 + 1] * (f_P[9 * j + i] + f_M[9 * j + i]);
 
-		M_flux += 1.*c_l[i * 2 + 0] *f_M[9 * j + i];
+		P_flux += 1.*c_l[i * 2 + 0] * f_P[9 * j + i];
+		M_flux += 1.*c_l[i * 2 + 0] * f_M[9 * j + i];
 	}
 
 	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
@@ -645,9 +651,11 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	if (j%XDIM == XDIM - 5)
 	{
 		spd = u[0 * size + j] / YDIM;
+		P_flux /= YDIM;
 		M_flux /= YDIM;
 
 		DoubleAtomicAdd(Q, spd);
+		DoubleAtomicAdd(Q_P, P_flux);
 		DoubleAtomicAdd(Q_M, M_flux);
 	}
 

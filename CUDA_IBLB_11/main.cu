@@ -310,14 +310,14 @@ int main(int argc, char * argv[])
 
 	double dx = 1. / LENGTH;
 	double dt = 1. / T;
-	double SPEED = 1000./T; //1740.8
+	double SPEED = 1000./T; 
 
 	double t_scale = 1000.*dt*t_0;					//milliseconds
 	double x_scale = 1000000. * dx*l_0;				//microns
 	double s_scale = x_scale / t_scale;				//millimetres per second 
 
 	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
-	const double TAU2 = 1. / (4.*(TAU - (1. / 2.))) + 1. / 2.;    //lamda = 1/4 most stable, 1/12 for optimal results
+	//const double TAU2 = 1. / (4.*(TAU - (1. / 2.))) + 1. / 2.;    //lamda = 1/4 most stable, 1/12 for optimal results
 
 	time_t rawtime;
 	struct tm * timeinfo;
@@ -394,6 +394,10 @@ int main(int argc, char * argv[])
 	double * Q_M;
 	cudaMallocHost(&Q_M, sizeof(double));
 	Q_M[0] = 0.;
+
+	double * Q_P;
+	cudaMallocHost(&Q_P, sizeof(double));
+	Q_P[0] = 0.;
 
 
 
@@ -547,6 +551,8 @@ int main(int argc, char * argv[])
 
 	double * d_Q_M;
 
+	double * d_Q_P;
+
 	
 
 	float * d_lasts;
@@ -640,6 +646,11 @@ int main(int argc, char * argv[])
 		}
 
 		cudaStatus = cudaMalloc((void**)&d_Q_M, sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc failed!");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_Q_P, sizeof(double));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc failed!");
 		}
@@ -778,8 +789,6 @@ int main(int argc, char * argv[])
 			rho_M[j] = 1.0;
 		}*/
 
-		rho_P[j] = 1.;
-		rho_M[j] = 0.;
 
 		u[0 * size + j] = 0.0;
 		u[1 * size + j] = 0.0;
@@ -909,6 +918,11 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy of Q failed!\n");
 		}
 
+		cudaStatus = cudaMemcpy(d_Q_P, Q_P, sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of Q failed!\n");
+		}
+
 		cudaStatus = cudaMemcpy(d_epsilon, epsilon, Ns*sizeof(int), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of Q failed!\n");
@@ -982,7 +996,7 @@ int main(int argc, char * argv[])
 	fsC << "Size: " << XDIM << "x" << YDIM << endl;
 	fsC << "Iterations: " << ITERATIONS << endl;
 	fsC << "Reynolds Number: " << Re << endl;
-	fsC << "Relaxation times: " << TAU << ", " << TAU2 << endl;
+	fsC << "Relaxation time: " << TAU <</* ", " << TAU2 <<*/ endl;
 	//if (TAU <= 0.6) fsC << "POSSIBLE INSTABILITY! 
 	//cout << "\nRelaxation time: " << TAU << endl;
 	//if (TAU >= 2.01) fsC << "POSSIBLE INACCURACY! Relaxation time: " << TAU << endl;
@@ -1185,7 +1199,7 @@ int main(int argc, char * argv[])
 
 		
 
-		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU, TAU2, XDIM, YDIM, it);					//PCL COLLISION STEP
+		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU, XDIM, YDIM);					//PCL COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1194,7 +1208,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU, TAU2, XDIM, YDIM, it);					// MUCUS COLLISION STEP
+		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU, XDIM, YDIM);					// MUCUS COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1329,7 +1343,7 @@ int main(int argc, char * argv[])
 		
 		cudaEventDestroy(cilia_done);
 
-		//interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1338,7 +1352,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		//spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
+		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);	//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1351,7 +1365,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		//forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_M, XDIM, YDIM);
+		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_P, d_Q_M, XDIM, YDIM);
 		
 		cudaEventRecord(fluid_done, f_stream);
 		{
@@ -1374,6 +1388,11 @@ int main(int argc, char * argv[])
 			}
 
 			cudaStatus = cudaMemcpyAsync(Q_M, d_Q_M, sizeof(double), cudaMemcpyDeviceToHost, o_stream);
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMemcpy of u failed!\n");
+			}
+
+			cudaStatus = cudaMemcpyAsync(Q_P, d_Q_P, sizeof(double), cudaMemcpyDeviceToHost, o_stream);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpy of u failed!\n");
 			}
@@ -1439,7 +1458,7 @@ int main(int argc, char * argv[])
 
 					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j] << "\t" << u[1 * size + j] << "\t" << phi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
+					fsA << x*x_scale << "\t" << y*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j]*s_scale << "\t" << u[1 * size + j] * s_scale << "\t" << phi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force_P[0 * size + j] << "\t" << force_P[1 * size + j] << endl;
 
 
 					if (x == XDIM - 1) fsA << endl;
@@ -1506,7 +1525,7 @@ int main(int argc, char * argv[])
 			PCL /= (size);
 			ML /= (size);
 
-			fsB << it << "\t" << density << "\t" << phimax << "\t" << phimin << "\t" << Q[0]*x_scale << "\t" << Q_M[0] * x_scale << endl;
+			fsB << it << "\t" << density << "\t" << phimax << "\t" << phimin << "\t" << Q[0] * x_scale << "\t" << Q_P[0] * x_scale << "\t" << Q_M[0] * x_scale << endl;
 
 			fsB.close();
 
