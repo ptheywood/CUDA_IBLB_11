@@ -280,7 +280,7 @@ int main(int argc, char * argv[])
 	unsigned int c_space = 48;
 	bool ShARC = 0;
 	bool BigData = 0;
-	float G_PM = 5.;
+	float G_PM = 6.;
 	int N_comp = 1.;
 
 	if (argc < 11)
@@ -317,7 +317,8 @@ int main(int argc, char * argv[])
 	double x_scale = 1000000. * dx*l_0;				//microns
 	double s_scale = x_scale / t_scale;				//millimetres per second 
 
-	const double TAU = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
+	const double TAU_P = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
+	const double TAU_M = (SPEED*LENGTH) / (Re*C_S*C_S) + 1. / 2.;
 	//const double TAU2 = 1. / (4.*(TAU - (1. / 2.))) + 1. / 2.;    //lamda = 1/4 most stable, 1/12 for optimal results
 
 	time_t rawtime;
@@ -944,9 +945,9 @@ int main(int argc, char * argv[])
 
 	//------------------------------------------------------SET INITIAL DISTRIBUTION TO EQUILIBRIUM-------------------------------------------------
 
-	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, TAU);				//PCL INITIAL EQUILIBRIUM SET
+	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, TAU_P);				//PCL INITIAL EQUILIBRIUM SET
 
-	if (N_comp == 2) equilibrium << <gridsize, blocksize >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU);				//PCL INITIAL EQUILIBRIUM SET
+	if (N_comp == 2) equilibrium << <gridsize, blocksize >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU_M);				//PCL INITIAL EQUILIBRIUM SET
 
 	{																										// Check for any errors launching the kernel
 		cudaStatus = cudaGetLastError();
@@ -1010,7 +1011,7 @@ int main(int argc, char * argv[])
 	fsC << "Size: " << XDIM << "x" << YDIM << endl;
 	fsC << "Iterations: " << ITERATIONS << endl;
 	fsC << "Reynolds Number: " << Re << endl;
-	fsC << "Relaxation time: " << TAU <</* ", " << TAU2 <<*/ endl;
+	fsC << "Relaxation time: " << TAU_P << ", " << TAU_M <</* ", " << TAU2 <<*/ endl;
 	//if (TAU <= 0.6) fsC << "POSSIBLE INSTABILITY! 
 	//cout << "\nRelaxation time: " << TAU << endl;
 	//if (TAU >= 2.01) fsC << "POSSIBLE INACCURACY! Relaxation time: " << TAU << endl;
@@ -1093,7 +1094,7 @@ int main(int argc, char * argv[])
 
 		
 
-		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, TAU);					//PCL EQUILIBRIUM STEP
+		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, TAU_P);					//PCL EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1102,7 +1103,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		if (N_comp == 2) equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU);					//MUCUS EQUILIBRIUM STEP
+		if (N_comp == 2) equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, TAU_M);					//MUCUS EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1213,7 +1214,7 @@ int main(int argc, char * argv[])
 
 		
 
-		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU, XDIM, YDIM);					//PCL COLLISION STEP
+		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU_P, XDIM, YDIM);					//PCL COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1222,7 +1223,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		if (N_comp == 2) collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU, XDIM, YDIM);					// MUCUS COLLISION STEP
+		if (N_comp == 2) collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU_M, XDIM, YDIM);					// MUCUS COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1540,7 +1541,7 @@ int main(int argc, char * argv[])
 			PCL /= (size);
 			ML /= (size);
 
-			fsB << it << "\t" << density << "\t" << phimax << "\t" << phimin << "\t" << Q[0] * x_scale << "\t" << Q_P[0] * x_scale << "\t" << Q_M[0] * x_scale << endl;
+			fsB << it*t_scale << "\t" << density << "\t" << phimax << "\t" << phimin << "\t" << Q[0] * x_scale << "\t" << Q_P[0] * x_scale << "\t" << Q_M[0] * x_scale << endl;
 
 			fsB.close();
 

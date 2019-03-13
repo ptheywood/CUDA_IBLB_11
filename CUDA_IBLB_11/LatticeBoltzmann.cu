@@ -54,7 +54,6 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 
 		for (i = 0; i < 9; i++)
 		{
-			F[9 * j + i] = 0.;
 			
 			f0[9 * j + i] = rho[j] * t[i] * (1.
 				+ (u[0 * size + j] * c_l[2 * i + 0] + u[1 * size + j] * c_l[2 * i + 1]) / (C_S*C_S)
