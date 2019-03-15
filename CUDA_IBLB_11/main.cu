@@ -474,6 +474,14 @@ int main(int argc, char * argv[])
 
 	force_M = new double[2 * size];
 
+	double * u_M;						//MUCUS VELOCITY
+
+	u_M = new double[2 * size];
+
+	double * force_E;						//ELASTIC MACROSCOPIC FORCE
+
+	force_E = new double[2 * size];
+
 	double * F_P;							//PCL LATTICE BOLTZMANN FORCE
 
 	F_P = new double[9 * size];
@@ -481,6 +489,10 @@ int main(int argc, char * argv[])
 	double * F_M;							//MUCUS LATTICE BOLTZMANN FORCE
 
 	F_M = new double[9 * size];
+
+	double * F_E;							//ELASTIC LATTICE BOLTZMANN FORCE
+
+	F_E= new double[9 * size];
 
 	unsigned int Ns = LENGTH * c_num;		//NUMBER OF BOUNDARY POINTS
 
@@ -537,9 +549,15 @@ int main(int argc, char * argv[])
 
 	double * d_force_M;
 
+	double * d_u_M;
+
+	double * d_force_E;
+
 	double * d_F_P;
 
 	double * d_F_M;
+
+	double * d_F_E;
 
 	float * d_F_s;
 
@@ -657,11 +675,24 @@ int main(int argc, char * argv[])
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMalloc failed!");
 			}
+
+		cudaStatus = cudaMalloc((void**)&d_force_E, 2 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc of force_E failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_F_E, 9 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc F_E failed\n");
+		}
+
+		cudaStatus = cudaMalloc((void**)&d_u_M, 2 * size * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc F_E failed\n");
+		}
 		
 
-	}
-
-	{
+	
 
 		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
@@ -767,14 +798,14 @@ int main(int argc, char * argv[])
 
 			if (y < LENGTH*0.9)
 			{
-				rho_P[j] = 0.9;
-				rho_M[j] = 0.1;
+				rho_P[j] = 0.95;
+				rho_M[j] = 0.05;
 			}
 
 			if (y >= LENGTH*0.9)
 			{
-				rho_P[j] = 0.1;
-				rho_M[j] = 0.9;
+				rho_P[j] = 0.05;
+				rho_M[j] = 0.95;
 			}
 		}
 		else
@@ -814,6 +845,12 @@ int main(int argc, char * argv[])
 		force_M[0 * size + j] = 0.;
 		force_M[1 * size + j] = 0.;
 
+		u_M[0 * size + j] = 0.0;
+		u_M[1 * size + j] = 0.0;
+
+		force_E[0 * size + j] = 0.;
+		force_E[1 * size + j] = 0.;
+
 
 		for (i = 0; i < 9; i++)
 		{
@@ -826,6 +863,8 @@ int main(int argc, char * argv[])
 			f_M[9 * j + i] = 0.;
 			f1_M[9 * j + i] = 0.;
 			F_M[9 * j + i] = 0.;
+
+			F_E[9 * j + i] = 0.;
 		}
 
 	}
@@ -898,12 +937,27 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy of force_M failed\n");
 		}
 
+		cudaStatus = cudaMemcpy(d_u_M, u_M, 2 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of force_M failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_force_E, force_E, 2 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of force_M failed\n");
+		}
+
 		cudaStatus = cudaMemcpy(d_F_P, F_P, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of F_P failed\n");
 		}
 
 		cudaStatus = cudaMemcpy(d_F_M, F_M, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of F_M failed\n");
+		}
+
+		cudaStatus = cudaMemcpy(d_F_E, F_E, 9 * size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of F_M failed\n");
 		}
@@ -1332,7 +1386,7 @@ int main(int argc, char * argv[])
 		*/
 		//////////////////////////////////////////////
 
-		macro << <gridsize, blocksize, 0, f_stream >> > (d_f_P, d_f_M, d_rho_P, d_rho_M, d_rho, d_u, XDIM, YDIM);			//MACRO STEP
+		macro << <gridsize, blocksize, 0, f_stream >> > (d_f_P, d_f_M, d_rho_P, d_rho_M, d_rho, d_u, d_u_M, XDIM, YDIM);			//MACRO STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1342,7 +1396,7 @@ int main(int argc, char * argv[])
 
 		}
 
-		binaryforces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force_P, d_force_M, d_u, XDIM, YDIM, G_PM);
+		binaryforces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force_P, d_force_M, d_force_E, d_u, d_u_M, XDIM, YDIM, G_PM);
 		
 
 		{
