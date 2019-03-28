@@ -439,8 +439,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	double G_ME = 0.;	//1.
 	double G_MA = 0; 
 
-	float mu = 0.;
-	float t_el = 10000000.;
+	float mu = 0.3;
+	float t_el = 46.; //10000000.
 	double Delta_u[2] = { 0.,0. };
 
 	int x = j%XDIM;
@@ -631,7 +631,7 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	u[0 * size + j] = 1.*(momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / (1.*rho[j]);
 	u[1 * size + j] = 1.*(momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / (1.*rho[j]);
 
-	if ((j - j%XDIM) / XDIM == 0) u[0 * size + j] = 0.001 * cos(it * 2.* 3.14159 / 10000.);
+	if ((j - j%XDIM) / XDIM == 0) u[0 * size + j] = 0.001 * cos(it * 2.* 3.14159 / 100.);
 
 	__syncthreads();
 
