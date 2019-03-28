@@ -188,7 +188,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 	__syncthreads();
 }
 
-__global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
+__global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int it)
 {
 	
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
@@ -243,7 +243,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 					if (right) { thru = 1;}
 					break;
 				case 2:
-					if (up) { /*thrp = 1;*/ slip = 1; }
+					if (up) { /*thrp = 1;*/ /*slip = 1;*/ back = 1; }
 					break;
 
 				case 3:
@@ -256,13 +256,13 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 
 				case 5:
 					//if (up && right) { jstream = 0; done = 1; }
-					if (up) { /*thrp = 1;*/ slip = 1; }
+					if (up) { /*thrp = 1;*/ /*slip = 1;*/ back = 1; }
 					else if (right) { thru = 1; }
 					break;
 
 				case 6:
 					//if (up && left) { jstream = XDIM - 1; done = 1; }
-					if (up) { /*thrp = 1;*/ slip = 1; }
+					if (up) { /*thrp = 1;*/ /*slip = 1;*/ back = 1; }
 					else if (left) { thru = 1; }
 					break;
 
@@ -330,6 +330,8 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM)
 				k = i;
 			}
 
+			//if (back && down && i == 1) f[9 * jstream + k] = (f1[9 * j + 1] + f1[9 * j + 3] ) * cos(it / 100000.);
+			//else if (back && down && i == 3) f[9 * jstream + k] = (f1[9 * j + 1] + f1[9 * j + 3]) * (1. - cos(it / 100000.));
 			f[9 * jstream + k] = f1[9 * j + i];								//STREAM TO ADJACENT CELL IN DIRECTION OF MOVEMENT
 		}
 	}
@@ -384,12 +386,14 @@ __global__ void macro(const double * f_P, const double * f_M, double * rho_P, do
 
 		u_M[0 * size + j] = 1.*(M_flux[0]) / (1.*rho_M[j]);
 		u_M[1 * size + j] = 1.*(M_flux[1]) / (1.*rho_M[j]);
+
+		
 	}
 
 	__syncthreads();
 }
 
-__global__ void binaryforces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, double * force_P, double * force_M, double * force_E, double * u, double * u_M, int XDIM, int YDIM, const float G_PM)
+__global__ void binaryforces(const double * rho_P, const double * rho_M, const double * rho, const double * f_P, const double * f_M, double * force_P, double * force_M, double * force_E, double * u, double * u_M, int XDIM, int YDIM, const float G_PM, int it)
 {
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
@@ -431,11 +435,11 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	force_M[1 * size + j] = 0.;
 
 	double G_PE = 0;
-	double G_PA = 1.;	//1.
-	double G_ME = 1.;	//1.
+	double G_PA = 0.;	//1.
+	double G_ME = 0.;	//1.
 	double G_MA = 0; 
 
-	float mu = 0.3;
+	float mu = 0.;
 	float t_el = 10000000.;
 	double Delta_u[2] = { 0.,0. };
 
@@ -626,6 +630,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	
 	u[0 * size + j] = 1.*(momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / (1.*rho[j]);
 	u[1 * size + j] = 1.*(momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / (1.*rho[j]);
+
+	if ((j - j%XDIM) / XDIM == 0) u[0 * size + j] = 0.001 * cos(it * 2.* 3.14159 / 10000.);
 
 	__syncthreads();
 
