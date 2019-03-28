@@ -783,23 +783,6 @@ int main(int argc, char * argv[])
 			rho_M[j] = 0.;
 		}
 
-		/*if (y >= YDIM*0.47 && y < YDIM*0.53) 
-		{
-			rho_M[j] = 0.25 + 0.5*(y - YDIM*0.47)/(YDIM*0.06);
-			rho_P[j] = 1. - rho_M[j];
-		}*/
-
-		/*if (((j - j%XDIM) / XDIM) < 80)
-		{
-			rho_P[j] = 1.0;
-			rho_M[j] = 0.0;
-		}
-
-		if (((j - j%XDIM) / XDIM) > YDIM - 80)
-		{
-			rho_P[j] = 0.0;
-			rho_M[j] = 1.0;
-		}*/
 
 
 		u[0 * size + j] = 0.0;
