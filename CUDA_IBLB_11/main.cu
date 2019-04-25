@@ -281,7 +281,7 @@ int main(int argc, char * argv[])
 	unsigned int c_space = 48;
 	bool ShARC = 0;
 	bool BigData = 0;
-	float G_PM = 6.;
+	float G_PM = 6.; //6.
 	int N_comp = 1.;
 
 	if (argc < 11)
@@ -788,16 +788,16 @@ int main(int argc, char * argv[])
 
 	//----------------------------------------INITIALISE ALL CELL VALUES---------------------------------------
 
-	for (j = 0; j < XDIM*YDIM; j++)
+	for (j = 0; j < XDIM*YDIM*ZDIM; j++)
 	{
 		rho[j] = RHO_0;
 
-		int y = ((j - j%XDIM) / XDIM);
+		int y = ((j - (j % XDIM)) / XDIM) % YDIM;
 		
 		if (N_comp == 2)
 		{
 
-			if (y < LENGTH*0.9)
+			if (y < LENGTH*0.9) //LENGTH*0.9
 			{
 				rho_P[j] = 0.95; //0.95
 				rho_M[j] = 0.05; //0.05
@@ -825,7 +825,7 @@ int main(int argc, char * argv[])
 
 		force_P[0 * size + j] = 0.;
 		force_P[1 * size + j] = 0.;
-		force_P[3 * size + j] = 0.;
+		force_P[2 * size + j] = 0.;
 
 		force_M[0 * size + j] = 0.;
 		force_M[1 * size + j] = 0.;
@@ -950,7 +950,7 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy of F_M failed\n");
 		}
 
-		cudaStatus = cudaMemcpy(d_F_s, F_s, 15 * Ns * sizeof(float), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of F_s failed!\n");
 		}
@@ -1017,7 +1017,7 @@ int main(int argc, char * argv[])
 
 	srand(3);
 
-	for (j = 0; j < XDIM*YDIM; j++)
+	for (j = 0; j < XDIM*YDIM*ZDIM; j++)
 	{
 		for (i = 0; i < 15; i++)
 		{
@@ -1400,6 +1400,7 @@ int main(int argc, char * argv[])
 			}
 
 		}
+		
 
 		if(N_comp == 2) binaryforces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force_P, d_force_M, d_force_E, d_u, d_u_M, XDIM, YDIM, ZDIM, G_PM, it);
 		
@@ -1418,7 +1419,9 @@ int main(int argc, char * argv[])
 		
 		cudaEventDestroy(cilia_done);
 
-		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
+		
+
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1427,7 +1430,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);						//IB SPREADING STEP
+		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, ZDIM, d_epsilon);						//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1484,17 +1487,17 @@ int main(int argc, char * argv[])
 
 				cudaStatus = cudaMemcpy(rho, d_rho, size * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "second cudaMemcpy of rho failed!\n");
+					fprintf(stderr, "second cudaMemcpy of rho failed: %s\n", cudaGetErrorString(cudaStatus));
 				}
 
 				cudaStatus = cudaMemcpy(rho_P, d_rho_P, size * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "second cudaMemcpy of rho_P failed!\n");
+					fprintf(stderr, "second cudaMemcpy of rho_P failed: %s\n", cudaGetErrorString(cudaStatus));
 				}
 
 				cudaStatus = cudaMemcpy(rho_M, d_rho_M, size * sizeof(double), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) {
-					fprintf(stderr, "second cudaMemcpy of rho_M failed!\n");
+					fprintf(stderr, "second cudaMemcpy of rho_M failed: %s\n", cudaGetErrorString(cudaStatus));
 				}
 			}
 
@@ -1526,7 +1529,7 @@ int main(int argc, char * argv[])
 				for (j = 0; j < size; j++)
 				{
 					int x = j % XDIM;
-					int y = (j - j % XDIM) / XDIM;
+					int y = ((j - (j % XDIM)) / XDIM) % YDIM;
 					int z = (j - j % (XDIM*YDIM)) / (XDIM*YDIM);
 
 					float phi = (rho_P[j] - rho_M[j]) / (rho_P[j] + rho_M[j]);
@@ -1535,7 +1538,7 @@ int main(int argc, char * argv[])
 
 					double abforce = sqrt(force_M[0 * size + j] * force_M[0 * size + j] + force_M[1 * size + j] * force_M[1 * size + j]);
 
-					fsA << x*x_scale << "\t" << y*x_scale << "\t" << z*x_scale << "\t" << rho[j] << "\t" << u[0 * size + j] * s_scale << "\t" << u[1 * size + j] * s_scale << "\t" << "\t" << u[2 * size + j] * s_scale << phi << "\t" << force[0 * size + j] << "\t" << force[1 * size + j] << "\t" << force[2 * size + j] << endl;
+					fsA << x/**x_scale*/ << "\t" << y/**x_scale*/ << "\t" << z/**x_scale*/ << "\t" << rho[j] << "\t" << u[0 * size + j] * s_scale << "\t" << u[1 * size + j] * s_scale << "\t" << u[2 * size + j] * s_scale << "\t" << phi << endl;
 
 
 					if (x == XDIM - 1) { fsA << endl; }
@@ -1564,7 +1567,7 @@ int main(int argc, char * argv[])
 
 				for (k = 0; k < Ns; k++)
 				{
-					fsA << s[2 * k + 0] * x_scale << "\t" << s[2 * k + 1] * x_scale << "\t" << u_s[2 * k + 0] * s_scale << "\t" << u_s[2 * k + 1] * s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
+					fsA << s[2 * k + 0] << "\t" << s[2 * k + 1] << "\t" << ZDIM*0.5 << "\t" << u_s[2 * k + 0] * s_scale << "\t" << u_s[2 * k + 1] * s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
 					if (k % LENGTH == (LENGTH - 1) || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
 				}
 

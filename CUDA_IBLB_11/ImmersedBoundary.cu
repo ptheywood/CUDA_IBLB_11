@@ -102,7 +102,7 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 
 	deltaz = a*(b + c*sqrt(-3.*d*d + 1));
 
-	delta = deltax * deltay ;
+	delta = deltax * deltay * deltaz;
 
 	return delta;
 }
@@ -202,7 +202,7 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 	sh_epsilon[n] = 0;
 
 	x = j%XDIM;
-	y = (j - j%XDIM) / XDIM;
+	y = ((j - (j % XDIM)) / XDIM) % YDIM;
 	z = (j - j % (XDIM*YDIM)) / (XDIM*YDIM);
 
 	for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays

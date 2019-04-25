@@ -15,7 +15,7 @@ __device__ const double C_S = 0.57735;
 
 __device__ const double c_l[15 * 3] =		//VELOCITY COMPONENTS
 {
-	0.,0. ,
+	0.,0.,0. ,
 	1.,0.,0. , -1.,0.,0. , 0.,1.,0. , 0.,-1.,0. , 0.,0.,1. , 0.,0.,-1. ,
 	1.,1.,1. , -1.,-1.,-1. , 1.,1.,-1. , -1.,-1.,1. , 1.,-1.,1. , -1.,1.,-1. , -1.,1.,1. , 1.,-1.,-1.
 };
@@ -206,7 +206,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 		j = threadnum;
 
 		x = j%XDIM;
-		y = (j - j%XDIM) / XDIM;
+		y = ((j - (j % XDIM)) / XDIM) % YDIM;
 		z = (j - j%(XDIM*YDIM)) / (XDIM*YDIM);
 
 		//------------------------------------WALL CONDITIONS------------------------------------------------
@@ -222,8 +222,10 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 		if (y == 0) down = 1;
 		if (x == 0) left = 1;
 		if (x == XDIM - 1) right = 1;
-		if (z == 0) front = 1;
-		if (z == ZDIM - 1) rear = 1;
+		if (z == 0) rear = 1;
+		if (z == ZDIM - 1) front = 1;
+
+
 
 		for (i = 0; i < 15; i++)
 		{
@@ -237,6 +239,8 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 			thrf = 0;
 			k = i;
 
+			
+			//printf("\n%d\n", y);
 
 			//---------------------------------------------------MID GRID NON-SLIP BOUNDARY------------------------------
 
@@ -249,6 +253,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 				case 1:
 					if (right) { thru = 1;}
 					break;
+
 				case 2:
 					if (left) { thru = 1; }
 					break;
@@ -272,7 +277,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 				case 7:
 					if (up) { slip = 1; }
 					else if (right && front) { jstream = j - XDIM*YDIM*(ZDIM-1) + 1; done = 1; }
-					else if (left) { thru = 1; }
+					else if (right) { thru = 1; }
 					else if (front) { thrf = 1; }
 					break;
 
@@ -324,7 +329,6 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 					else if (right) { thru = 1; }
 					else if (rear) { thrf = 1; }
 					break;
-
 
 				}
 
@@ -480,16 +484,10 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 	j = threadnum;
 
-	double temp[6];
+	double temp[6] = { 0., 0., 0., 0., 0., 0. };
 
-	temp[0] = 0.;
-	temp[1] = 0.;
-	temp[2] = 0.;
-	temp[3] = 0.;
-	temp[4] = 0.;
-	temp[5] = 0.;
 
-	double momentum[2];
+	double momentum[3] = { 0., 0., 0. };
 
 	double psi_P = 1. - exp(-1.*rho_P[j]);
 	double psi_M = 1. - exp(-1.*rho_M[j]);
@@ -518,22 +516,22 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	double G_ME = 0.;	//1.
 	double G_MA = 0; 
 
-	float mu = 0.3; //0.3
-	float t_el = 100000000.; // 100 x T equivelant to 6 seconds: in range of real gel
+	float mu = 0.; //0.3
+	float t_el = 1000000000.; // 100 x T equivelant to 6 seconds: in range of real gel
 	double Delta_u[3] = { 0.,0.,0. };
 
 	int x = j%XDIM;
-	int y = (j - j%XDIM) / XDIM;
+	int y = ((j - (j % XDIM)) / XDIM) % YDIM;
 	int z = (j - j%(XDIM*YDIM)) / (XDIM*YDIM);
 
 	if (y == YDIM - 1) up = 1;
 	if (y == 0) down = 1;
 	if (x == 0) left = 1;
 	if (x == XDIM - 1) right = 1;
-	if (z == 0) front = 1;
-	if (z == ZDIM - 1) rear = 1;
+	if (z == 0) rear = 1;
+	if (z == ZDIM - 1) front = 1;
 
-	//not converted yet
+	
 	for (i = 1; i < 15; i++)
 	{
 		epi = 0;
@@ -602,66 +600,65 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 			case 7:
 				if (up) { air = 1; done = 1; }
 				else if (right && front) { next = j - XDIM*YDIM*(ZDIM - 1) + 1; done = 1; }
-				else if (left) { next = j + (XDIM - 1); done = 1; }
-				else if (front) { next = j - XDIM*YDIM*(ZDIM - 1); done = 1; }
+				else if (right) { next = j - (XDIM - 1)*c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2]; done = 1; }
+				else if (front) { next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] - XDIM*YDIM*(ZDIM - 1)*c_l[i * 3 + 2]; done = 1; }
 				break;
 
 			case 8:
 				if (down) { epi = 1; done = 1; }
-				else if (right && rear) { next = j + XDIM*YDIM*(ZDIM - 1) - 1; done = 1; }
-				else if (left) { next = j + (XDIM - 1); done = 1; }
-				else if (rear) { next = j + XDIM*YDIM*(ZDIM - 1); done = 1; }
+				else if (left && rear) { next = j + XDIM*YDIM*(ZDIM - 1) - 1; done = 1; }
+				else if (left) { next = j - (XDIM - 1)*c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2]; done = 1; }
+				else if (rear) { next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] - XDIM*YDIM*(ZDIM - 1)*c_l[i * 3 + 2]; done = 1; }
 				break;
 
 			case 9:
 				if (up) { air = 1; done = 1; }
 				else if (right && rear) { next = j + XDIM*YDIM*(ZDIM - 1) + 1; done = 1; }
-				else if (right) { next = j - (XDIM - 1); done = 1; }
-				else if (rear) { next = j + XDIM*YDIM*(ZDIM - 1); done = 1; }
+				else if (right) { next = j - (XDIM - 1)*c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2]; done = 1; }
+				else if (rear) { next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] - XDIM*YDIM*(ZDIM - 1)*c_l[i * 3 + 2]; done = 1; }
 				break;
 
 			case 10:
 				if (down) { epi = 1; done = 1; }
 				else if (left && front) { next = j - XDIM*YDIM*(ZDIM - 1) - 1; done = 1; }
-				else if (left) { next = j + (XDIM - 1); done = 1; }
-				else if (front) { next = j - XDIM*YDIM*(ZDIM - 1); done = 1; }
+				else if (left) { next = j - (XDIM - 1)*c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2]; done = 1; }
+				else if (front) { next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] - XDIM*YDIM*(ZDIM - 1)*c_l[i * 3 + 2]; done = 1; }
 				break;
 
 			case 11:
 				if (down) { epi = 1; done = 1; }
 				else if (right && front) { next = j - XDIM*(YDIM*(ZDIM - 1) + 2) + 1; done = 1; }
-				else if (right) { next = j - (XDIM - 1); done = 1; }
-				else if (front) { next = j - XDIM*YDIM*(ZDIM - 1); done = 1; }
+				else if (right) { next = j - (XDIM - 1)*c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2]; done = 1; }
+				else if (front) { next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] - XDIM*YDIM*(ZDIM - 1)*c_l[i * 3 + 2]; done = 1; }
 				break;
 
 			case 12:
 				if (up) { air = 1; done = 1; }
 				else if (left && rear) { next = j + XDIM*(YDIM*(ZDIM - 1) + 2) - 1; done = 1; }
-				else if (left) { next = j + (XDIM - 1); done = 1; }
-				else if (rear) { next = j + XDIM*YDIM*(ZDIM - 1); done = 1; }
+				else if (left) { next = j - (XDIM - 1)*c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2]; done = 1; }
+				else if (rear) { next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] - XDIM*YDIM*(ZDIM - 1)*c_l[i * 3 + 2]; done = 1; }
 				break;
 
 			case 13:
-				if (up) { air = 1; }
+				if (up) { air = 1; done = 1; }
 				else if (left && front) { next = j - XDIM*(YDIM*(ZDIM - 1) - 2) - 1; done = 1; }
-				else if (left) { next = j + (XDIM - 1); done = 1; }
-				else if (front) { next = j - XDIM*YDIM*(ZDIM - 1); done = 1; }
+				else if (left) { next = j - (XDIM - 1)*c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2]; done = 1; }
+				else if (front) { next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] - XDIM*YDIM*(ZDIM - 1)*c_l[i * 3 + 2]; done = 1; }
 				break;
 
 			case 14:
-				if (down) { epi = 1; }
+				if (down) { epi = 1; done = 1; }
 				else if (right && rear) { next = j + XDIM*(YDIM*(ZDIM - 1) - 2) + 1; done = 1; }
-				else if (right) { next = j - (XDIM - 1); done = 1; }
-				else if (rear) { next = j + XDIM*YDIM*(ZDIM - 1); done = 1; }
+				else if (right) { next = j - (XDIM - 1)*c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2]; done = 1; }
+				else if (rear) { next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] - XDIM*YDIM*(ZDIM - 1)*c_l[i * 3 + 2]; done = 1; }
 				break;
 
-				break;
 			}
 		}
 
 		if (!done)
 		{
-			next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2];;		//checked, all correct
+			next = j + c_l[i * 3 + 0] + XDIM*c_l[i * 3 + 1] + XDIM*YDIM*c_l[i * 3 + 2];		
 		}
 
 		if (epi)
@@ -678,7 +675,7 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 		{
 			force_PA[0] += -1. * psi_P * G_PA * t[i] * c_l[i * 3 + 0];
 			force_PA[1] += -1. * psi_P * G_PA * t[i] * c_l[i * 3 + 1];
-			force_PA[3] += -1. * psi_P * G_PA * t[i] * c_l[i * 3 + 2];
+			force_PA[2] += -1. * psi_P * G_PA * t[i] * c_l[i * 3 + 2];
 
 			force_MA[0] += -1. * psi_M * G_MA * t[i] * c_l[i * 3 + 0];
 			force_MA[1] += -1. * psi_M * G_MA * t[i] * c_l[i * 3 + 1];
@@ -691,7 +688,7 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 			temp[0] += 1.* t[i] * psi_Mn * c_l[i * 3 + 0];
 			temp[1] += 1.* t[i] * psi_Mn * c_l[i * 3 + 1];
-			temp[2] += 1.* t[i] * psi_Pn * c_l[i * 3 + 2];
+			temp[2] += 1.* t[i] * psi_Mn * c_l[i * 3 + 2];
 			temp[3] += 1.* t[i] * psi_Pn * c_l[i * 3 + 0];
 			temp[4] += 1.* t[i] * psi_Pn * c_l[i * 3 + 1];
 			temp[5] += 1.* t[i] * psi_Pn * c_l[i * 3 + 2];
@@ -731,6 +728,7 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 
 	momentum[0] = 0.;
 	momentum[1] = 0.;
+	momentum[2] = 0.;
 
 	
 		for (i = 0; i < 15; i++)
@@ -787,7 +785,7 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 
 	momentum[0] = 0.;
 	momentum[1] = 0.;
-	momentum[3] = 0.;
+	momentum[2] = 0.;
 
 	for (i = 0; i < 15; i++)
 	{
