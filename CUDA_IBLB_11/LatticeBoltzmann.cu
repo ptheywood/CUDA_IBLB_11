@@ -310,14 +310,14 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 					break;
 
 				case 12:
-					if (up) { back = 1; }
+					if (up) { slip = 1; }
 					else if (left && rear) { jstream = j + XDIM*(YDIM*(ZDIM - 1) + 2) - 1; done = 1; }
 					else if (left) { thru = 1; }
 					else if (rear) { thrf = 1; }
 					break;
 
 				case 13:
-					if (up) { back = 1; }
+					if (up) { slip = 1; }
 					else if (left && front) { jstream = j - XDIM*(YDIM*(ZDIM - 1) - 2) - 1; done = 1; }
 					else if (left) { thru = 1; }
 					else if (front) { thrf = 1; }
@@ -434,7 +434,7 @@ __global__ void macro(const double * f_P, const double * f_M, double * rho_P, do
 
 		u[0 * size + j] = 0.;
 		u[1 * size + j] = 0.;
-		u[3 * size + j] = 0.;
+		u[2 * size + j] = 0.;
 
 		u_M[0 * size + j] = 0.;
 		u_M[1 * size + j] = 0.;
@@ -516,8 +516,8 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	double G_ME = 0.;	//1.
 	double G_MA = 0; 
 
-	float mu = 0.; //0.3
-	float t_el = 1000000000.; // 100 x T equivelant to 6 seconds: in range of real gel
+	float mu = 0.3; //0.3
+	float t_el = 100000000.; // 100 x T equivelant to 6 seconds: in range of real gel
 	double Delta_u[3] = { 0.,0.,0. };
 
 	int x = j%XDIM;
@@ -772,10 +772,10 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 
 	force_P[0 * size + j] += 1.*(rho_P[j] / (1.*rho[j])) * force[0 * size + j];
 	force_P[1 * size + j] += 1.*(rho_P[j] / (1.*rho[j])) * force[1 * size + j];
-	force_P[2 * size + j] += 1.*(rho_P[j] / (1.*rho[j])) * force[2 * size + j];
+	force_P[2 * size + j] += 1.*(rho_P[j] / (1.*rho[j])) * 0.;
 	force_M[0 * size + j] += 1.*(rho_M[j] / (1.*rho[j])) * force[0 * size + j];
 	force_M[1 * size + j] += 1.*(rho_M[j] / (1.*rho[j])) * force[1 * size + j];
-	force_M[2 * size + j] += 1.*(rho_M[j] / (1.*rho[j])) * force[2 * size + j];
+	force_M[2 * size + j] += 1.*(rho_M[j] / (1.*rho[j])) * 0.;
 
 	__syncthreads();
 
@@ -799,16 +799,16 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 
 	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
 	u[1 * size + j] = (momentum[1] + 0.5*(force_P[1 * size + j] + force_M[1 * size + j])) / rho[j];
-	u[2 * size + j] = (momentum[1] + 0.5*(force_P[2 * size + j] + force_M[2 * size + j])) / rho[j];
+	u[2 * size + j] = (momentum[2] + 0.5*(force_P[2 * size + j] + force_M[2 * size + j])) / rho[j];
 
 	__syncthreads();
 
 
 	if (j%XDIM == XDIM - 5)
 	{
-		spd = u[0 * size + j] / YDIM;
-		P_flux /= YDIM;
-		M_flux /= YDIM;
+		spd = u[0 * size + j] / (YDIM*ZDIM);
+		P_flux /= (YDIM*ZDIM);
+		M_flux /= (YDIM*ZDIM);
 
 		DoubleAtomicAdd(Q, spd);
 		DoubleAtomicAdd(Q_P, P_flux);

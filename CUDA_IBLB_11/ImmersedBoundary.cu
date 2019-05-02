@@ -13,7 +13,7 @@
 
 __device__ const double c_l[15 * 3] =		//VELOCITY COMPONENTS
 {
-	0.,0. ,
+	0.,0.,0. ,
 	1.,0.,0. , -1.,0.,0. , 0.,1.,0. , 0.,-1.,0. , 0.,0.,1. , 0.,0.,-1. ,
 	1.,1.,1. , -1.,-1.,-1. , 1.,1.,-1. , -1.,-1.,1. , 1.,-1.,1. , -1.,1.,-1. , -1.,1.,1. , 1.,-1.,-1.
 };
@@ -195,7 +195,6 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 
 	force[0 * size + j] = 0.;		//initialise
 	force[1 * size + j] = 0.;
-	force[2 * size + j] = 0.;
 
 	sh_s[n] = 0.;
 	sh_F_s[n] = 0.;
@@ -205,76 +204,79 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 	y = ((j - (j % XDIM)) / XDIM) % YDIM;
 	z = (j - j % (XDIM*YDIM)) / (XDIM*YDIM);
 
-	for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
-	{
-		__syncthreads();
+	//----------------------Using shared memory--------------------------------------
 
-		sh_s[n] = s[m*tile + n];		//take values from next tile in the arrays to shared memory
-		sh_F_s[n] = F_s[m*tile + n];
-		if(n<tpoints) sh_epsilon[n] = epsilon[m*tpoints + n];
+	//for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
+	//{
+	//	__syncthreads();
 
-		__syncthreads();
+	//	sh_s[n] = s[m*tile + n];		//take values from next tile in the arrays to shared memory
+	//	sh_F_s[n] = F_s[m*tile + n];
+	//	if(n<tpoints) sh_epsilon[n] = epsilon[m*tpoints + n];
+
+	//	__syncthreads();
 
 
-		for (k = 0; k < tpoints; k++)	//iterate for each value within a tile ("tile" values reporesent "tile/2" points with x and y coordinates)
-		{
-			xs = sh_s[2 * k + 0];		//x value
-			ys = sh_s[2 * k + 1];		//y value
-			zs = ZDIM*0.5;				//only valid for 2.5D simulations
+	//	for (k = 0; k < tpoints; k++)	//iterate for each value within a tile ("tile" values reporesent "tile/2" points with x and y coordinates)
+	//	{
+	//		xs = sh_s[2 * k + 0];		//x value
+	//		ys = sh_s[2 * k + 1];		//y value
+	//		zs = ZDIM*0.5;				//only valid for 2.5D simulations
 
-			del = d_delta(xs, ys, zs, x, y, z);
+	//		del = d_delta(xs, ys, zs, x, y, z);
 
-			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * sh_epsilon[k];		//calculate force x
-			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * sh_epsilon[k];		//calculate force y
+	//		force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * sh_epsilon[k];		//calculate force x
+	//		force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * sh_epsilon[k];		//calculate force y
 
-			//__syncthreads();
-		}
+	//		//__syncthreads();
+	//	}
 
-		__syncthreads();
-	}
+	//	__syncthreads();
+	//}
 
-	
+	//
 
-	if (n < excess)		//if there are excess values after the arrays have been split into tiles, and only execute for that many threads
-	{
-		sh_s[n] = s[numtiles*tile + n];		//take values from excess into shared memory
-		sh_F_s[n] = F_s[numtiles*tile + n];
-	}
-	else
-	{
-		sh_s[n] = -100.;		//dummy values
-		sh_F_s[n] = 0.;
-	}
-	
-	__syncthreads();
+	//if (n < excess)		//if there are excess values after the arrays have been split into tiles, and only execute for that many threads
+	//{
+	//	sh_s[n] = s[numtiles*tile + n];		//take values from excess into shared memory
+	//	sh_F_s[n] = F_s[numtiles*tile + n];
+	//}
+	//else
+	//{
+	//	sh_s[n] = -100.;		//dummy values
+	//	sh_F_s[n] = 0.;
+	//}
+	//
+	//__syncthreads();
 
-		for (k = 0; k < tpoints; k++)	//iterate for all remaining values
-		{
-			xs = sh_s[k * 2 + 0];		//x value
-			ys = sh_s[k * 2 + 1];		//y value
-			zs = ZDIM*0.5;				//only valid for 2.5D simulations
+	//	for (k = 0; k < tpoints; k++)	//iterate for all remaining values
+	//	{
+	//		xs = sh_s[k * 2 + 0];		//x value
+	//		ys = sh_s[k * 2 + 1];		//y value
+	//		zs = ZDIM*0.5;				//only valid for 2.5D simulations
 
-			del = d_delta(xs, ys, zs, x, y, z);
+	//		del = d_delta(xs, ys, zs, x, y, z);
 
-			force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1.*epsilon[numtiles*tpoints + k];		//calculate force x
-			force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1.*epsilon[numtiles*tpoints + k];		//calculate force y
+	//		force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1.*epsilon[numtiles*tpoints + k];		//calculate force x
+	//		force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1.*epsilon[numtiles*tpoints + k];		//calculate force y
 
-			//__syncthreads();
-		}
-		
-	__syncthreads();
+	//		//__syncthreads();
+	//	}
+	//	
+	//__syncthreads();
 
 	//this is the original code, without using shared memory
-	/*for (k = 0; k < Ns; k++)
+	for (k = 0; k < Ns; k++)
 	{
 		xs = s[k * 2 + 0];
 		ys = s[k * 2 + 1];
+		zs = ZDIM*0.5;				//only valid for 2.5D simulations
 
-		del = delta(xs, ys, x, y);
+		del = d_delta(xs, ys, zs, x, y, z);
 
-		force[0 * size + j] += F_s[2 * k + 0] * del * 1.*epsilon[k];
-		force[1 * size + j] += F_s[2 * k + 1] * del * 1.*epsilon[k];
-	}*/
+		force[0 * size + j] += F_s[2 * k + 0] * del * 1. * epsilon[k];
+		force[1 * size + j] += F_s[2 * k + 1] * del * 1. * epsilon[k];
+	}
 
 	/////////////////////////////////////////////////////////////////END////////////////////////////////////////////////////////////
 /*
