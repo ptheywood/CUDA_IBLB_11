@@ -243,7 +243,7 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 					if (right) { thru = 1;}
 					break;
 				case 2:
-					if (up) { /*thrp = 1;*/ /*slip = 1;*/ back = 1; }
+					if (up) { /*thrp = 1;*/ slip = 1;}
 					break;
 
 				case 3:
@@ -256,13 +256,13 @@ __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int
 
 				case 5:
 					//if (up && right) { jstream = 0; done = 1; }
-					if (up) { /*thrp = 1;*/ /*slip = 1;*/ back = 1; }
+					if (up) { /*thrp = 1;*/ slip = 1;}
 					else if (right) { thru = 1; }
 					break;
 
 				case 6:
 					//if (up && left) { jstream = XDIM - 1; done = 1; }
-					if (up) { /*thrp = 1;*/ /*slip = 1;*/ back = 1; }
+					if (up) { /*thrp = 1;*/ slip = 1;}
 					else if (left) { thru = 1; }
 					break;
 
@@ -440,7 +440,7 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	double G_MA = 0; 
 
 	float mu = 0.3;
-	float t_el = 46.; //10000000.
+	float t_el = 100000000.; //10000000.
 	double Delta_u[2] = { 0.,0. };
 
 	int x = j%XDIM;

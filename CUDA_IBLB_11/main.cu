@@ -33,45 +33,45 @@ using namespace std;
 double l_0 = 0.000006;					//6 MICRON CILIUM LENGTH
 double t_0 = 0.067;						//67ms BEAT PERIOD AT 15Hz
 
-//__constant__ double A_mn[7 * 2 * 3] =						//WITH MUCUS PRESENT
-//{
-//	-0.449,	 0.130, -0.169,	 0.063, -0.050, -0.040, -0.068,
-//	2.076, -0.003,	 0.054,	 0.007,	 0.026,	 0.022,	 0.010,
-//	-0.072, -1.502,	 0.260, -0.123,	 0.011, -0.009,	 0.196,
-//	-1.074, -0.230, -0.305, -0.180, -0.069,	 0.001, -0.080,
-//	0.658,	 0.793, -0.251,	 0.049,	 0.009,	 0.023, -0.111,
-//	0.381,	 0.331,	 0.193,	 0.082,	 0.029,	 0.002,	 0.048
-//};
-//
-//__constant__ double B_mn[7 * 2 * 3] =
-//{
-//	0.0, -0.030, -0.093,  0.037,  0.062,  0.016, -0.065,
-//	0.0,  0.080, -0.044, -0.017,  0.052,  0.007,  0.051,
-//	0.0,  1.285, -0.036, -0.244, -0.093, -0.137,  0.095,
-//	0.0, -0.298,  0.513,  0.004, -0.222,  0.035, -0.128,
-//	0.0, -1.034,  0.050,  0.143,  0.043,  0.098, -0.054,
-//	0.0,  0.210, -0.367,  0.009,  0.120, -0.024,  0.102
-//};
-
-__constant__ double A_mn[7 * 2 * 3] =						//WITHOUT MUCUS
+__constant__ double A_mn[7 * 2 * 3] =						//WITH MUCUS PRESENT
 {
-	-0.654,	 0.393,	-0.097,	 0.079,	 0.119,	 0.119,	 0.009,
-	1.895,	-0.018,	 0.158,	 0.010,	 0.003,	 0.013,	 0.040,
-	0.787,	-1.516,	 0.032,	-0.302,	-0.252,	-0.015,	 0.035,
-	-0.552,	-0.126,	-0.341,	 0.035,	 0.006, -0.029,	-0.068,
-	0.202,	 0.716,	-0.118,	 0.142,	 0.110,	-0.013,	-0.043,
-	0.096,	 0.263,	 0.186,	-0.067,	-0.032,	-0.002,	 0.015
+	-0.449,	 0.130, -0.169,	 0.063, -0.050, -0.040, -0.068,
+	2.076, -0.003,	 0.054,	 0.007,	 0.026,	 0.022,	 0.010,
+	-0.072, -1.502,	 0.260, -0.123,	 0.011, -0.009,	 0.196,
+	-1.074, -0.230, -0.305, -0.180, -0.069,	 0.001, -0.080,
+	0.658,	 0.793, -0.251,	 0.049,	 0.009,	 0.023, -0.111,
+	0.381,	 0.331,	 0.193,	 0.082,	 0.029,	 0.002,	 0.048
 };
 
 __constant__ double B_mn[7 * 2 * 3] =
 {
-	0.0,	 0.284,	 0.006,	-0.059,	 0.018,	 0.053,	 0.009,
-	0.0,	 0.192,	-0.050,	 0.012,	-0.007,	-0.014,	-0.017,
-	0.0,	 1.045,	 0.317,	 0.226,	 0.004,	-0.082,	-0.040,
-	0.0,	-0.499,	 0.423,	 0.138,	 0.125,	 0.075,	 0.067,
-	0.0,	-1.017,	-0.276,	-0.196,	-0.037,	 0.025,	 0.023,
-	0.0,	 0.339,	-0.327,	-0.114,	-0.105,	-0.057,	-0.055
+	0.0, -0.030, -0.093,  0.037,  0.062,  0.016, -0.065,
+	0.0,  0.080, -0.044, -0.017,  0.052,  0.007,  0.051,
+	0.0,  1.285, -0.036, -0.244, -0.093, -0.137,  0.095,
+	0.0, -0.298,  0.513,  0.004, -0.222,  0.035, -0.128,
+	0.0, -1.034,  0.050,  0.143,  0.043,  0.098, -0.054,
+	0.0,  0.210, -0.367,  0.009,  0.120, -0.024,  0.102
 };
+
+//__constant__ double A_mn[7 * 2 * 3] =						//WITHOUT MUCUS
+//{
+//	-0.654,	 0.393,	-0.097,	 0.079,	 0.119,	 0.119,	 0.009,
+//	1.895,	-0.018,	 0.158,	 0.010,	 0.003,	 0.013,	 0.040,
+//	0.787,	-1.516,	 0.032,	-0.302,	-0.252,	-0.015,	 0.035,
+//	-0.552,	-0.126,	-0.341,	 0.035,	 0.006, -0.029,	-0.068,
+//	0.202,	 0.716,	-0.118,	 0.142,	 0.110,	-0.013,	-0.043,
+//	0.096,	 0.263,	 0.186,	-0.067,	-0.032,	-0.002,	 0.015
+//};
+//
+//__constant__ double B_mn[7 * 2 * 3] =
+//{
+//	0.0,	 0.284,	 0.006,	-0.059,	 0.018,	 0.053,	 0.009,
+//	0.0,	 0.192,	-0.050,	 0.012,	-0.007,	-0.014,	-0.017,
+//	0.0,	 1.045,	 0.317,	 0.226,	 0.004,	-0.082,	-0.040,
+//	0.0,	-0.499,	 0.423,	 0.138,	 0.125,	 0.075,	 0.067,
+//	0.0,	-1.017,	-0.276,	-0.196,	-0.037,	 0.025,	 0.023,
+//	0.0,	 0.339,	-0.327,	-0.114,	-0.105,	-0.057,	-0.055
+//};
 
 __global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, float * s, float * lasts, float * b_points, int length)
 {
@@ -268,7 +268,7 @@ int main(int argc, char * argv[])
 	unsigned int c_num = 6;
 	double Re = 1.0;
 	unsigned int XDIM = 100;
-	unsigned int YDIM = 128;
+	unsigned int YDIM = 192;
 	unsigned int T = 100000;
 	unsigned int T_pow = 1;
 	float T_num = 1.0;
@@ -791,31 +791,29 @@ int main(int argc, char * argv[])
 	{
 		rho[j] = RHO_0;
 
-		//int y = ((j - j%XDIM) / XDIM);
-		//
-		//if (N_comp == 2)
-		//{
+		int y = ((j - j%XDIM) / XDIM);
+		
+		if (N_comp == 2)
+		{
 
-		//	if (y < LENGTH*0.9)
-		//	{
-		//		rho_P[j] = 0.; //0.95
-		//		rho_M[j] = 1.; //0.05
-		//	}
+			if (y < LENGTH*0.9)
+			{
+				rho_P[j] = 0.95; //0.95
+				rho_M[j] = 0.05; //0.05
+			}
 
-		//	if (y >= LENGTH*0.9)
-		//	{
-		//		rho_P[j] = 0.; //0.05
-		//		rho_M[j] = 1.; //0.95
-		//	}
-		//}
-		//else
-		//{
-		//	rho_P[j] = 1.;
-		//	rho_M[j] = 0.;
-		//}
+			if (y >= LENGTH*0.9)
+			{
+				rho_P[j] = 0.05; //0.05
+				rho_M[j] = 0.95; //0.95
+			}
+		}
+		else
+		{
+			rho_P[j] = 1.;
+			rho_M[j] = 0.;
+		}
 
-		rho_P[j] = 0.; //0.95
-		rho_M[j] = 1.; //0.05
 
 
 
@@ -1025,7 +1023,7 @@ int main(int argc, char * argv[])
 			else f_M[9 * j + i] = 0.;
 		}
 
-		f_M[9 * j + 0] = 7. / 8.;
+		/*f_M[9 * j + 0] = 7. / 8.;
 		f_M[9 * j + 1] = 1. / 32. * rand() / RAND_MAX;
 		f_M[9 * j + 2] = 1. / 32. * rand() / RAND_MAX;
 		f_M[9 * j + 3] = 1. / 32. - f_M[9 * j + 1];
@@ -1033,7 +1031,7 @@ int main(int argc, char * argv[])
 		f_M[9 * j + 5] = 1. / 32. * rand() / RAND_MAX;
 		f_M[9 * j + 6] = 1. / 32. * rand() / RAND_MAX;
 		f_M[9 * j + 7] = 1. / 32. - f_M[9 * j + 5];
-		f_M[9 * j + 8] = 1. / 32. - f_M[9 * j + 6];
+		f_M[9 * j + 8] = 1. / 32. - f_M[9 * j + 6];*/
 		
 	}
 
@@ -1412,7 +1410,7 @@ int main(int argc, char * argv[])
 		
 		cudaEventDestroy(cilia_done);
 
-		//interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1421,7 +1419,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		//spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);						//IB SPREADING STEP
+		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, d_epsilon);						//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1434,7 +1432,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		//forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_P, d_Q_M, XDIM, YDIM);
+		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_P, d_Q_M, XDIM, YDIM);
 		
 		cudaEventRecord(fluid_done, f_stream);
 		{
@@ -1515,7 +1513,7 @@ int main(int argc, char * argv[])
 				outfile = raw_data + to_string(it / INTERVAL) + "-fluid.dat";
 
 				fsA.open(outfile.c_str());
-				fsB.open(flux.c_str(), ofstream::app);
+				//fsB.open(flux.c_str(), ofstream::app);
 
 				for (j = 0; j < size; j++)
 				{
@@ -1536,13 +1534,13 @@ int main(int argc, char * argv[])
 					if (it > 0 && x == XDIM - 1)
 					{
 						fsA << endl;
-						fsB << x_speed << "\t";
+						//fsB << x_speed << "\t";
 					}
 				}
 
-				fsB << endl;
+				//fsB << endl;
 
-				fsB.close();
+				//fsB.close();
 				fsA.close();
 
 				//cudaEventSynchronize(cilia_done);
@@ -1573,7 +1571,7 @@ int main(int argc, char * argv[])
 
 			}
 
-			//fsB.open(flux.c_str(), ofstream::app);
+			fsB.open(flux.c_str(), ofstream::app);
 
 			cudaEventSynchronize(Q_done);
 
@@ -1604,7 +1602,7 @@ int main(int argc, char * argv[])
 			PCL /= (size);
 			ML /= (size);
 
-			//fsB << it*t_scale << "\t" << density << "\t" << phimax << "\t" << phimin << "\t" << Q[0] * x_scale << "\t" << Q_P[0] * x_scale << "\t" << Q_M[0] * x_scale << endl;
+			fsB << it*t_scale << "\t" << density << "\t" << phimax << "\t" << phimin << "\t" << Q[0] * x_scale << "\t" << Q_P[0] * x_scale << "\t" << Q_M[0] * x_scale << endl;
 			/*fsB << it*t_scale << "\t";
 
 			for (int counter = 0; counter < YDIM; counter++)
@@ -1615,8 +1613,8 @@ int main(int argc, char * argv[])
 			}
 
 			fsB << endl;
-
-			fsB.close();*/
+			*/
+			fsB.close();
 
 			//----------------------------------------------------------
 		}
