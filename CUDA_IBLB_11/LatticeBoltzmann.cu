@@ -77,9 +77,9 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 	__syncthreads();
 }
 
-__global__ void collision(const double * f0, const double * f, double * f1, const double * F, double TAU, int XDIM, int YDIM)
+__global__ void collision(const double * f0, const double * f, double * f1, const double * F, double TAU, int XDIM, int YDIM, int ZDIM)
 {
-	unsigned int j(0), i(0);
+	unsigned int j(0), k(0), i(0), n(0), m(0);
 
 	//double rho_set = 1.;
 	//double u_set[2] = { 0.00004,0. };
@@ -91,6 +91,8 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 
 	//double f_plus(0.), f_minus(0.), f0_plus(0.), f0_minus(0.);
 
+	int size = XDIM*YDIM*ZDIM;
+
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;
 
 	{
@@ -99,7 +101,6 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 		for (i = 0 ; i < 15 ; i++)
 		{
 			f1[15 * j + i] = (1 - (1 / TAU))*f[15 * j + i] + (1 / TAU)*f0[15 * j + i] + F[j * 15 + i];
-
 
 			// TRT method
 			/*f1[9 * j + 0] = f[9 * j + 0] - omega_plus*(f[9 * j + 0] - f0[9 * j + 0]) + F[9 * j + 0];
@@ -153,6 +154,77 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 			f1[9 * j + 8] = f[9 * j + 8] - omega_plus*(f_plus - f0_plus) - omega_minus*(f_minus - f0_minus) + F[9 * j + 8];*/
 
 		}
+
+		//--------------------------------SHARED MEMORY USAGE------------------------------
+		//n = threadIdx.x;
+
+		//const int tile = 128;
+		//const int tpoints = tile / 15;
+		//int numtiles = (15*size - (15*size) % tile) / (tile);	//number of full tiles to populate the whole array of values
+		//int excess = (15*size) % tile;	//number of values outside of full tiles
+
+		//__shared__ double sh_f0[tile];
+		//__shared__ double sh_f[tile];
+		////__shared__ double sh_f1[tile];
+		//__shared__ double sh_F[tile];
+
+		//sh_f0[n] = 0.;
+		//sh_f[n] = 0.;
+		////sh_f1[n] = 0.;
+		//sh_F[n] = 0.;
+
+		//for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
+		//{
+		//	__syncthreads();
+
+		//	sh_f0[n] = f0[m*tile + n];
+		//	sh_f[n] = f[m*tile + n];
+		//	//sh_f1[n] = f1[m*tile + n];
+		//	sh_F[n] = F[m*tile + n];
+
+		//	__syncthreads();
+
+		//	for (k = 0; k < tpoints; k++)
+		//	{
+		//		for (i = 0; i < 15; i++)
+		//		{
+		//			f1[15 * j + i] = (1 - (1 / TAU))*sh_f[15 * k + i] + (1 / TAU)*sh_f0[15 * k + i] + sh_F[15 * k + i];
+
+		//		}
+		//	}
+
+		//	__syncthreads();
+		//}
+
+		//
+
+		//if (n < excess)		//if there are excess values after the arrays have been split into tiles, and only execute for that many threads
+		//{
+		//	sh_f0[n] = f0[numtiles*tile + n];		//take values from excess into shared memory
+		//	sh_f[n] = f[numtiles*tile + n];
+		//	//sh_f1[n] = f1[numtiles*tile + n];
+		//	sh_F[n] = F[numtiles*tile + n];
+		//}
+		//else
+		//{
+		//	sh_f0[n] = 0.;		//take values from excess into shared memory
+		//	sh_f[n] = 0.;
+		//	//sh_f1[n] = 0.;
+		//	sh_F[n] = 0.;
+		//}
+		//
+		//__syncthreads();
+
+		//for (k = 0; k < tpoints; k++)
+		//{
+		//	for (i = 0; i < 15; i++)
+		//	{
+		//		f1[15 * j + i] = (1 - (1 / TAU))*sh_f[15 * k + i] + (1 / TAU)*sh_f0[15 * k + i] + sh_F[15 * k + i];
+
+		//	}
+		//}
+
+		__syncthreads();
 
 		//--------------------------------ZOU-HE VELOCITY BOUNDARY-------------------------
 		/*

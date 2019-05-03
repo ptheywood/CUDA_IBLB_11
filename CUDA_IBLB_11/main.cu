@@ -301,7 +301,9 @@ int main(int argc, char * argv[])
 	XDIM = c_num*c_space;
 	T = nearbyint(T_num * pow(10, T_pow));
 	ITERATIONS = T*I_pow; 
+	//cout << endl << T << " / " << I_pow << " = " << ITERATIONS << " iterations" << endl;
 	INTERVAL = ITERATIONS / P_num;
+	//cout << endl << ITERATIONS << " / " << P_num << " = " << INTERVAL << " interval (should be 1)" << endl;
 
 	if (XDIM < 2 * LENGTH && c_num > 1)
 	{
@@ -1273,7 +1275,7 @@ int main(int argc, char * argv[])
 
 		
 
-		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU_P, XDIM, YDIM);					//PCL COLLISION STEP
+		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU_P, XDIM, YDIM, ZDIM);					//PCL COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1282,7 +1284,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		if (N_comp == 2) collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU_M, XDIM, YDIM);					// MUCUS COLLISION STEP
+		if (N_comp == 2) collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU_M, XDIM, YDIM, ZDIM);					// MUCUS COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
