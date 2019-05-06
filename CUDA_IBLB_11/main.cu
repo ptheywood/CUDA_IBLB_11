@@ -269,7 +269,7 @@ int main(int argc, char * argv[])
 	double Re = 1.0;
 	unsigned int XDIM = 100;
 	unsigned int YDIM = 192;
-	unsigned int ZDIM =  24;
+	unsigned int ZDIM =  12;
 	unsigned int T = 1000000;
 	unsigned int T_pow = 1;
 	float T_num = 1.0;
@@ -1526,7 +1526,7 @@ int main(int argc, char * argv[])
 				outfile = raw_data + to_string(it / INTERVAL) + "-fluid.dat";
 
 				fsA.open(outfile.c_str());
-				fsB.open(flux.c_str(), ofstream::app);
+				
 
 				for (j = 0; j < size; j++)
 				{
@@ -1607,6 +1607,8 @@ int main(int argc, char * argv[])
 			density /= (size);
 			PCL /= (size);
 			ML /= (size);
+
+			fsB.open(flux.c_str(), ofstream::app);
 
 			fsB << it*t_scale << "\t" << density << "\t" << phimax << "\t" << phimin << "\t" << Q[0] * x_scale << "\t" << Q_P[0] * x_scale << "\t" << Q_M[0] * x_scale << endl;
 
