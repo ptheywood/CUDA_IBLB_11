@@ -269,7 +269,7 @@ int main(int argc, char * argv[])
 	double Re = 1.0;
 	unsigned int XDIM = 100;
 	unsigned int YDIM = 192;
-	unsigned int ZDIM =  12;
+	unsigned int ZDIM =   6; //SPACING BETWEEN ROWS OF CILIA FOR 2.5D SIMULATIONS
 	unsigned int T = 1000000;
 	unsigned int T_pow = 1;
 	float T_num = 1.0;
@@ -282,7 +282,6 @@ int main(int argc, char * argv[])
 	bool ShARC = 0;
 	bool BigData = 0;
 	float G_PM = 6.; //6.
-	int N_comp = 1.;
 
 	if (argc < 11)
 	{
@@ -294,9 +293,9 @@ int main(int argc, char * argv[])
 	stringstream arg;
 
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
-		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10] << ' ' << argv[11];
+		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10];
 
-	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData >> N_comp ;
+	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData;
 
 	XDIM = c_num*c_space;
 	T = nearbyint(T_num * pow(10, T_pow));
@@ -739,7 +738,7 @@ int main(int argc, char * argv[])
 	string output_data = "Data/Test/";
 
 	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
-	//else output_data = "C:/Users/phq16ja/Documents/Data/";
+	else output_data = "C:/Users/phq16ja/Documents/Data/";
 		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
 	string raw_data = output_data + "Raw/";
@@ -764,8 +763,6 @@ int main(int argc, char * argv[])
 	//----------------------------------------BOUNDARY INITIALISATION------------------------------------------------
 
 	string flux = output_data + "/Flux/" + to_string(c_fraction) + "_" + to_string(c_num) + "_" + to_string(c_space) + "_" + to_string_3(Re) + "_" + to_string_3(T_num) + "x" + to_string_3(T_pow) + "-flux.dat";
-
-	string impd = output_data + "/Flux/" + to_string(c_space) + "-impedence.dat";
 
 	string parameters = raw_data + "/SimLog.txt";
 
@@ -795,9 +792,6 @@ int main(int argc, char * argv[])
 		rho[j] = RHO_0;
 
 		int y = ((j - (j % XDIM)) / XDIM) % YDIM;
-		
-		if (N_comp == 2)
-		{
 
 			if (y < LENGTH*0.9) //LENGTH*0.9
 			{
@@ -810,12 +804,8 @@ int main(int argc, char * argv[])
 				rho_P[j] = 0.05; //0.05
 				rho_M[j] = 0.95; //0.95
 			}
-		}
-		else
-		{
-			rho_P[j] = 1.;
-			rho_M[j] = 0.;
-		}
+		
+		
 
 		u[0 * size + j] = 0.0;
 		u[1 * size + j] = 0.0;
@@ -991,7 +981,7 @@ int main(int argc, char * argv[])
 
 	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, ZDIM, TAU_P);				//PCL INITIAL EQUILIBRIUM SET
 
-	if (N_comp == 2) equilibrium << <gridsize, blocksize >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, ZDIM, TAU_M);				//PCL INITIAL EQUILIBRIUM SET
+	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, ZDIM, TAU_M);				//ML INITIAL EQUILIBRIUM SET
 
 	{																										// Check for any errors launching the kernel
 		cudaStatus = cudaGetLastError();
@@ -1025,8 +1015,7 @@ int main(int argc, char * argv[])
 		{
 			f_P[15 * j + i] = f0_P[15 * j + i];
 
-			if (N_comp == 2) f_M[15 * j + i] = f0_M[15 * j + i];
-			else f_M[15 * j + i] = 0.;
+			f_M[15 * j + i] = f0_M[15 * j + i];
 		}
 
 		//initially random fluid motion
@@ -1050,7 +1039,7 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "second cudaMemcpy of f_P failed\n");
 	}
 
-	//if (N_comp == 2)
+	
 	{
 		cudaStatus = cudaMemcpy(d_f_M, f_M, 15 * size * sizeof(double), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
@@ -1164,7 +1153,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		if (N_comp == 2) equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, ZDIM, TAU_M);					//MUCUS EQUILIBRIUM STEP
+		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, ZDIM, TAU_M);					//MUCUS EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1284,7 +1273,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		if (N_comp == 2) collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU_M, XDIM, YDIM, ZDIM);					// MUCUS COLLISION STEP
+		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU_M, XDIM, YDIM, ZDIM);					// MUCUS COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1343,7 +1332,7 @@ int main(int argc, char * argv[])
 
 		}
 
-		if (N_comp == 2) streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_M, d_f_M, XDIM, YDIM, ZDIM, it);												//MUCUS STREAMING STEP
+		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_M, d_f_M, XDIM, YDIM, ZDIM, it);												//MUCUS STREAMING STEP
 
 		{																											
 			cudaStatus = cudaGetLastError();
@@ -1404,7 +1393,7 @@ int main(int argc, char * argv[])
 		}
 		
 
-		if(N_comp == 2) binaryforces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force_P, d_force_M, d_force_E, d_u, d_u_M, XDIM, YDIM, ZDIM, G_PM, it);
+		binaryforces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force_P, d_force_M, d_force_E, d_u, d_u_M, XDIM, YDIM, ZDIM, G_PM, it);
 		
 
 		{
