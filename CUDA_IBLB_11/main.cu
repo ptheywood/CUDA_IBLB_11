@@ -266,6 +266,7 @@ int main(int argc, char * argv[])
 
 	unsigned int c_fraction = 1;
 	unsigned int c_num = 6;
+	unsigned int c_rows = 3;
 	double Re = 1.0;
 	unsigned int XDIM = 100;
 	unsigned int YDIM = 192;
@@ -298,7 +299,7 @@ int main(int argc, char * argv[])
 	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData;
 
 	XDIM = c_num*c_space;
-	ZDIM = c_space;
+	ZDIM = c_space*c_rows;
 	T = nearbyint(T_num * pow(10, T_pow));
 	ITERATIONS = T*I_pow; 
 	//cout << endl << T << " / " << I_pow << " = " << ITERATIONS << " iterations" << endl;
@@ -371,7 +372,7 @@ int main(int argc, char * argv[])
 
 	int gridsize = size / blocksize;
 
-	int blocksize2 = c_num*LENGTH;
+	int blocksize2 = c_num*LENGTH*c_rows;
 
 	int gridsize2 = 1;
 
@@ -379,16 +380,32 @@ int main(int argc, char * argv[])
 	{
 		for (blocksize2 = 1024; blocksize2 > 0; blocksize2 -= LENGTH)
 		{
-			if ((c_num*LENGTH) % blocksize2 == 0)
+			if ((c_num*LENGTH*c_rows) % blocksize2 == 0)
 			{
-				gridsize2 = (c_num*LENGTH) / blocksize2;
+				gridsize2 = (c_num*LENGTH*c_rows) / blocksize2;
 				break;
 			}
 		}
 	}
 
 	int blocksize3 = 48;
-	int gridsize3 = LENGTH * 100/blocksize3 * c_num;		
+	int gridsize3 = LENGTH * 100/blocksize3 * c_num;	
+
+	int blocksize4 = c_num*LENGTH;
+
+	int gridsize4 = 1;
+
+	if (blocksize4 > 1024)
+	{
+		for (blocksize4 = 1024; blocksize4 > 0; blocksize4 -= LENGTH)
+		{
+			if ((c_num*LENGTH) % blocksize4 == 0)
+			{
+				gridsize4 = (c_num*LENGTH) / blocksize4;
+				break;
+			}
+		}
+	}
 
 	cudaError_t cudaStatus;
 
@@ -512,7 +529,7 @@ int main(int argc, char * argv[])
 
 	u_s = new float[2 * Ns];
 
-	F_s = new float[2 * Ns];
+	F_s = new float[2 * Ns * c_rows];
 
 	epsilon = new int[Ns];
 
@@ -697,7 +714,7 @@ int main(int argc, char * argv[])
 
 	
 
-		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * sizeof(float));
+		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * c_rows * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of F_s failed\n");
 		}
@@ -943,7 +960,7 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy of F_M failed\n");
 		}
 
-		cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * c_rows * sizeof(float), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of F_s failed!\n");
 		}
@@ -1126,7 +1143,7 @@ int main(int argc, char * argv[])
 		cudaStreamWaitEvent(c_stream, fluid_done, 0);
 		cudaEventDestroy(fluid_done);
 
-		boundary_check << <gridsize2, blocksize2, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon, LENGTH);
+		boundary_check << <gridsize4, blocksize4, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon, LENGTH);
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1413,7 +1430,7 @@ int main(int argc, char * argv[])
 
 		
 
-		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM);						//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM, c_space);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1422,9 +1439,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		if(y < )
-
-		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, ZDIM, d_epsilon);						//IB SPREADING STEP
+		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, ZDIM, d_epsilon, c_space, c_rows);						//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1518,7 +1533,7 @@ int main(int argc, char * argv[])
 				outfile = raw_data + to_string(it / INTERVAL) + "-fluid.dat";
 
 				fsA.open(outfile.c_str());
-				
+
 
 				for (j = 0; j < size; j++)
 				{
@@ -1538,7 +1553,7 @@ int main(int argc, char * argv[])
 					if (x == XDIM - 1) { fsA << endl; }
 				}
 
-				
+
 				fsA.close();
 
 				//cudaEventSynchronize(cilia_done);
@@ -1559,12 +1574,15 @@ int main(int argc, char * argv[])
 
 				fsA.open(outfile.c_str());
 
-				for (k = 0; k < Ns; k++)
+				for (int row = 0; row < c_rows; row++)
 				{
-					fsA << s[2 * k + 0] << "\t" << s[2 * k + 1] << "\t" << ZDIM*0.5 << "\t" << u_s[2 * k + 0] * s_scale << "\t" << u_s[2 * k + 1] * s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
-					if (k % LENGTH == (LENGTH - 1) || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
-				}
 
+					for (k = 0; k < Ns; k++)
+					{
+						fsA << s[2 * k + 0] << "\t" << s[2 * k + 1] << "\t" << c_space*(row + 0.5) << "\t" << u_s[2 * k + 0] * s_scale << "\t" << u_s[2 * k + 1] * s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
+						if (k % LENGTH == (LENGTH - 1) || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
+					}
+				}
 				fsA.close();
 
 			}

@@ -118,26 +118,29 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 //	} while (assumed != old);
 //}
 
-__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM, const int YDIM, const int ZDIM)
+__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM, const int YDIM, const int ZDIM, const int c_space)
 {
 
-	int i(0), j(0), k(0), x0(0), y0(0), z0(0), x(0), y(0), z(0);
+	int i(0), j(0), k(0), l(0), x0(0), y0(0), z0(0), x(0), y(0), z(0);
 
 	double xs(0.), ys(0.), zs(0.), del(0.);
 
 	int size = XDIM*YDIM*ZDIM;
 
+	k = blockIdx.x*blockDim.x + threadIdx.x; //boundary point in whole system
 
-	k = blockIdx.x*blockDim.x + threadIdx.x;
+	l = k % Ns; //boundary point within row
+
+	int row = (k - l) / Ns; //row number
 
 
 	{
 		F_s[2 * k + 0] = 0.;
 		F_s[2 * k + 1] = 0.;
 
-		xs = s[k * 2 + 0];
-		ys = s[k * 2 + 1];
-		zs = ZDIM*0.5;					//only valid for 2.5D simulations
+		xs = s[l * 2 + 0];
+		ys = s[l * 2 + 1];
+		zs = c_space*(row + 0.5);					//valid for full 3D simulations with duplicated rows
 
 		x0 = nearbyint(xs);
 		y0 = nearbyint(ys);
@@ -153,8 +156,8 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 			del = d_delta(xs, ys, zs, x, y, z);
 
-			F_s[2 * k + 0] += 2.*(1. * 1. * del) * rho[j] * (u_s[2 * k + 0] - u[0 * size + j]);
-			F_s[2 * k + 1] += 2.*(1. * 1. * del) * rho[j] * (u_s[2 * k + 1] - u[1 * size + j]);
+			F_s[2 * k + 0] += 2.*(1. * 1. * del) * rho[j] * (u_s[2 * l + 0] - u[0 * size + j]);
+			F_s[2 * k + 1] += 2.*(1. * 1. * del) * rho[j] * (u_s[2 * l + 1] - u[1 * size + j]);
 		}
 
 	}
@@ -165,21 +168,23 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 // rho[size]: fluid density	u[2*size]: fluid velocity	f[9*size]: density function		Ns: No. of cilia boundary points	u_s[2*Ns]: cilia velocity	F_s[2*Ns]: cilia force	
 // force[2*size]: fluid force	s[2*Ns]: cilia position	XDIM: x dimension	Q: Net flow		epsilon[Ns]: boundary point switching
 
-__global__ void spread(const int Ns, const float * u_s, const float * F_s, double * force, const float * s, const int XDIM, const int YDIM, const int ZDIM, const int * epsilon)
+__global__ void spread(const int Ns, const float * u_s, const float * F_s, double * force, const float * s, const int XDIM, const int YDIM, const int ZDIM, const int * epsilon, const int c_space, const int c_rows)
 {
-	int j(0), k(0), x(0), y(0), z(0);
+	int j(0), k(0), l(0), x(0), y(0), z(0);
 
-	int n(0), m(0);
+	//int n(0), m(0); 
 
 	float xs(0.), ys(0.), zs(0.), del(0.);
 
 	int size = YDIM * XDIM * ZDIM;
 
+	
+
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
 	j = blockIdx.x*blockDim.x + threadIdx.x;	//unique thread ID
 
-	n = threadIdx.x;		//thread ID within block
+	
 
 	force[0 * size + j] = 0.;		//initialise
 	force[1 * size + j] = 0.;
@@ -189,19 +194,27 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 	z = (j - j % (XDIM*YDIM)) / (XDIM*YDIM);
 
 	//this is the original code, without using shared memory
-	for (k = 0; k < Ns; k++)
+	for (k = 0; k < Ns * c_rows; k++)
 	{
-		xs = s[k * 2 + 0];
-		ys = s[k * 2 + 1];
-		zs = ZDIM*0.5;				//only valid for 2.5D simulations
+		l = k % Ns; 
+		
+		int row = (k - l) / Ns;
+
+		xs = s[l * 2 + 0];
+		ys = s[l * 2 + 1];
+		zs = c_space*(row + 0.5);				//Valid for 3D simulations with duplicated rows
 
 		del = d_delta(xs, ys, zs, x, y, z);
 
-		force[0 * size + j] += F_s[2 * k + 0] * del * 1. * epsilon[k];
-		force[1 * size + j] += F_s[2 * k + 1] * del * 1. * epsilon[k];
+		force[0 * size + j] += F_s[2 * k + 0] * del * 1. * epsilon[l];
+		force[1 * size + j] += F_s[2 * k + 1] * del * 1. * epsilon[l];
 	}
 
 	//----------------------Using shared memory--------------------------------------
+
+	//int n(0), m(0); 
+
+	//n = threadIdx.x;		//thread ID within block
 
 	//const int tile = 384;	//size of a tile, same as blockdim.x
 
