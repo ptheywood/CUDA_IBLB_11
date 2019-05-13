@@ -269,7 +269,7 @@ int main(int argc, char * argv[])
 	double Re = 1.0;
 	unsigned int XDIM = 100;
 	unsigned int YDIM = 192;
-	unsigned int ZDIM =   6; //SPACING BETWEEN ROWS OF CILIA FOR 2.5D SIMULATIONS
+	unsigned int ZDIM =  16; //SPACING BETWEEN ROWS OF CILIA FOR 2.5D SIMULATIONS
 	unsigned int T = 1000000;
 	unsigned int T_pow = 1;
 	float T_num = 1.0;
@@ -298,6 +298,7 @@ int main(int argc, char * argv[])
 	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData;
 
 	XDIM = c_num*c_space;
+	ZDIM = c_space;
 	T = nearbyint(T_num * pow(10, T_pow));
 	ITERATIONS = T*I_pow; 
 	//cout << endl << T << " / " << I_pow << " = " << ITERATIONS << " iterations" << endl;
@@ -366,7 +367,7 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 128;
+	int blocksize = 384;
 
 	int gridsize = size / blocksize;
 
@@ -1420,6 +1421,8 @@ int main(int argc, char * argv[])
 				fprintf(stderr, "interpolate launch failed: %s\n", cudaGetErrorString(cudaStatus));
 			}
 		}
+
+		if(y < )
 
 		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, ZDIM, d_epsilon);						//IB SPREADING STEP
 

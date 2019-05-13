@@ -177,18 +177,6 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
-	const int tile = 128;	//size of a tile, same as blockdim.x
-
-	const int tpoints = tile / 2;
-
-	int numtiles = (2 * Ns - (2 * Ns) % tile) / (tile);	//number of full tiles to populate the whole array of values
-	
-	int excess = (2 * Ns) % tile;	//number of values outside of full tiles
-	
-	__shared__ float sh_s[tile];	//shared version of s array
-	__shared__ float sh_F_s[tile];	//shared version of F_s array
-	__shared__ int sh_epsilon[tile];
-
 	j = blockIdx.x*blockDim.x + threadIdx.x;	//unique thread ID
 
 	n = threadIdx.x;		//thread ID within block
@@ -196,15 +184,40 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 	force[0 * size + j] = 0.;		//initialise
 	force[1 * size + j] = 0.;
 
-	sh_s[n] = 0.;
-	sh_F_s[n] = 0.;
-	sh_epsilon[n] = 0;
-
 	x = j%XDIM;
 	y = ((j - (j % XDIM)) / XDIM) % YDIM;
 	z = (j - j % (XDIM*YDIM)) / (XDIM*YDIM);
 
+	//this is the original code, without using shared memory
+	for (k = 0; k < Ns; k++)
+	{
+		xs = s[k * 2 + 0];
+		ys = s[k * 2 + 1];
+		zs = ZDIM*0.5;				//only valid for 2.5D simulations
+
+		del = d_delta(xs, ys, zs, x, y, z);
+
+		force[0 * size + j] += F_s[2 * k + 0] * del * 1. * epsilon[k];
+		force[1 * size + j] += F_s[2 * k + 1] * del * 1. * epsilon[k];
+	}
+
 	//----------------------Using shared memory--------------------------------------
+
+	//const int tile = 384;	//size of a tile, same as blockdim.x
+
+	//const int tpoints = tile / 2;
+
+	//int numtiles = (2 * Ns - (2 * Ns) % tile) / (tile);	//number of full tiles to populate the whole array of values
+
+	//int excess = (2 * Ns) % tile;	//number of values outside of full tiles
+
+	//__shared__ float sh_s[tile];	//shared version of s array
+	//__shared__ float sh_F_s[tile];	//shared version of F_s array
+	//__shared__ int sh_epsilon[tile];
+
+	//sh_s[n] = 0.;
+	//sh_F_s[n] = 0.;
+	//sh_epsilon[n] = 0;
 
 	//for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
 	//{
@@ -265,18 +278,7 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 	//	
 	//__syncthreads();
 
-	//this is the original code, without using shared memory
-	for (k = 0; k < Ns; k++)
-	{
-		xs = s[k * 2 + 0];
-		ys = s[k * 2 + 1];
-		zs = ZDIM*0.5;				//only valid for 2.5D simulations
-
-		del = d_delta(xs, ys, zs, x, y, z);
-
-		force[0 * size + j] += F_s[2 * k + 0] * del * 1. * epsilon[k];
-		force[1 * size + j] += F_s[2 * k + 1] * del * 1. * epsilon[k];
-	}
+	
 
 	/////////////////////////////////////////////////////////////////END////////////////////////////////////////////////////////////
 /*

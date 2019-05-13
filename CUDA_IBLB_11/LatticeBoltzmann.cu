@@ -100,7 +100,7 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 
 		for (i = 0 ; i < 15 ; i++)
 		{
-			f1[15 * j + i] = (1 - (1 / TAU))*f[15 * j + i] + (1 / TAU)*f0[15 * j + i] + F[j * 15 + i];
+			f1[15 * j + i] = (1 - (1 / TAU))*f[15 * j + i] + (1 / TAU)*f0[15 * j + i] + F[15 * j + i];
 
 			// TRT method
 			/*f1[9 * j + 0] = f[9 * j + 0] - omega_plus*(f[9 * j + 0] - f0[9 * j + 0]) + F[9 * j + 0];
@@ -165,12 +165,10 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 
 		//__shared__ double sh_f0[tile];
 		//__shared__ double sh_f[tile];
-		////__shared__ double sh_f1[tile];
 		//__shared__ double sh_F[tile];
 
 		//sh_f0[n] = 0.;
 		//sh_f[n] = 0.;
-		////sh_f1[n] = 0.;
 		//sh_F[n] = 0.;
 
 		//for (m = 0; m < numtiles; m++)		//iterate for each tile within the arrays
@@ -179,7 +177,6 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 
 		//	sh_f0[n] = f0[m*tile + n];
 		//	sh_f[n] = f[m*tile + n];
-		//	//sh_f1[n] = f1[m*tile + n];
 		//	sh_F[n] = F[m*tile + n];
 
 		//	__syncthreads();
@@ -202,14 +199,12 @@ __global__ void collision(const double * f0, const double * f, double * f1, cons
 		//{
 		//	sh_f0[n] = f0[numtiles*tile + n];		//take values from excess into shared memory
 		//	sh_f[n] = f[numtiles*tile + n];
-		//	//sh_f1[n] = f1[numtiles*tile + n];
 		//	sh_F[n] = F[numtiles*tile + n];
 		//}
 		//else
 		//{
 		//	sh_f0[n] = 0.;		//take values from excess into shared memory
 		//	sh_f[n] = 0.;
-		//	//sh_f1[n] = 0.;
 		//	sh_F[n] = 0.;
 		//}
 		//
