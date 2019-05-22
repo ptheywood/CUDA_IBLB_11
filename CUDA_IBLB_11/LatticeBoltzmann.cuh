@@ -3,7 +3,7 @@
 
 __global__ void equilibrium(const double * u, const double * rho, double * f0, const double * force, double * F, int XDIM, int YDIM, int ZDIM, double TAU);
 
-__global__ void collision(const double * f0, const double * f, double * f1, const double * F, double TAU, int XDIM, int YDIM, int ZDIM);
+__global__ void collision(const double * f0, const double * f, double * f1, const double * F, const double TAU, const int XDIM, const int YDIM, const int ZDIM);
 
 __global__ void streaming(const double * f1, double * f, int XDIM, int YDIM, int ZDIM, int it);
 

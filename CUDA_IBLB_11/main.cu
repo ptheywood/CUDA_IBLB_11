@@ -266,9 +266,9 @@ int main(int argc, char * argv[])
 
 	unsigned int c_fraction = 1;
 	unsigned int c_num = 6;
-	unsigned int c_rows = 3;
+	unsigned int c_rows = 2;
 	double Re = 1.0;
-	unsigned int XDIM = 100;
+	unsigned int XDIM = 192;
 	unsigned int YDIM = 192;
 	unsigned int ZDIM =  16; //SPACING BETWEEN ROWS OF CILIA FOR 2.5D SIMULATIONS
 	unsigned int T = 1000000;
@@ -368,7 +368,7 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 384;
+	int blocksize = 128;
 
 	int gridsize = size / blocksize;
 
@@ -1567,7 +1567,7 @@ int main(int argc, char * argv[])
 				cudaStatus = cudaMemcpy(epsilon, d_epsilon, Np * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of epsilon failed!\n"); }
 
-				cudaStatus = cudaMemcpy(F_s, d_F_s, 2 * Ns * sizeof(float), cudaMemcpyDeviceToHost);
+				cudaStatus = cudaMemcpy(F_s, d_F_s, 2 * Ns * c_rows * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of F_s failed!\n"); }
 
 				outfile = cilia_data + to_string(it / INTERVAL) + "-cilia.dat";
@@ -1581,6 +1581,7 @@ int main(int argc, char * argv[])
 					{
 						fsA << s[2 * k + 0] << "\t" << s[2 * k + 1] << "\t" << c_space*(row + 0.5) << "\t" << u_s[2 * k + 0] * s_scale << "\t" << u_s[2 * k + 1] * s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
 						if (k % LENGTH == (LENGTH - 1) || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
+						if (k == 1 && row == c_rows - 1) fsA << "\n";
 					}
 				}
 				fsA.close();
