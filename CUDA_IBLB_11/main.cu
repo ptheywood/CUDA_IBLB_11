@@ -73,7 +73,8 @@ __constant__ double B_mn[7 * 2 * 3] =
 //	0.0,	 0.339,	-0.327,	-0.114,	-0.105,	-0.057,	-0.055
 //};
 
-__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const double c_num, float * s, float * lasts, float * b_points, int length)
+
+__global__ void define_filament(const int T, const int it, const double c_space, const int p_step, const int c_num, const int c_rows, float * s, float * lasts, float * b_points, int length)
 {
 	int n(0), j(0);
 
@@ -84,28 +85,33 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 	int l_max = int(length * 1.16);
 
 	float arcl(0.);
-	int phase(0.);
+	int phase(0);
+	int z_phase(0);
 
 	float b_length(0.);
 
 	float a_n[2 * 7];
 	float b_n[2 * 7];
 
-	int threadnum = blockDim.x*blockIdx.x + threadIdx.x;
+	int threadnum = blockDim.x*blockIdx.x + threadIdx.x;		//individual thread number
 
-	int k = threadnum % f_length;
+	int k = threadnum % f_length;								//point number along cilium
 
-	int m = (threadnum - k) / f_length;
+	int m = ((threadnum - k) / f_length) % c_num;				//cilium number within row
 
-	{
+	int o = (threadnum - k) / f_length;							//overall cilium number
+
+	int r = (o - m) / c_num;									//row number
+
+	int point = threadnum;
+
+	
 		arcl = 1.*k / f_length;
 
 		if (it + m*p_step == T) phase = T;
-		else phase = (it + m*p_step) % T;
+		else phase = (it + m*p_step + r*p_step) % T;//(it + m*p_step) % T;
 
 		float offset = 1.*(m - (c_num - 1) / 2.)*c_space;
-
-
 
 		for (n = 0; n < 7; n++)
 		{
@@ -135,38 +141,43 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 
 		}
 
-		s[5 * (k + m * f_length) + 0] = 1. * l_max * a_n[2 * 0 + 0] * 0.5 + offset;
-		s[5 * (k + m * f_length) + 1] = 1. * l_max * a_n[2 * 0 + 1] * 0.5;
-		s[5 * (k + m * f_length) + 2] = l_max * arcl;
+		s[7 * point + 0] = 1. * l_max * a_n[2 * 0 + 0] * 0.5 + offset;	//x position
+		s[7 * point + 1] = 1. * l_max * a_n[2 * 0 + 1] * 0.5;			//y position
+		s[7 * point + 2] = c_space*(0.5 + r);							//z position
+		s[7 * point + 3] = l_max * arcl;								//position on cilium
 
 		for (n = 1; n < 7; n++)
 		{
-			s[5 * (k + m * f_length) + 0] += 1. * l_max * (a_n[2 * n + 0] * cos(n*2.*PI*phase / T) + b_n[2 * n + 0] * sin(n*2.*PI*phase / T));
-			s[5 * (k + m * f_length) + 1] += 1. * l_max * (a_n[2 * n + 1] * cos(n*2.*PI*phase / T) + b_n[2 * n + 1] * sin(n*2.*PI*phase / T));
+			s[7 * point + 0] += 1. * l_max * (a_n[2 * n + 0] * cos(n*2.*PI*phase / T) + b_n[2 * n + 0] * sin(n*2.*PI*phase / T));
+			s[7 * point + 1] += 1. * l_max * (a_n[2 * n + 1] * cos(n*2.*PI*phase / T) + b_n[2 * n + 1] * sin(n*2.*PI*phase / T));
 		}
 
 		if (it > 0)
 		{
-			s[5 * (k + m * f_length) + 3] = s[5 * (k + m * f_length) + 0] - lasts[2 * (k + m * f_length) + 0];
-			s[5 * (k + m * f_length) + 4] = s[5 * (k + m * f_length) + 1] - lasts[2 * (k + m * f_length) + 1];
+			s[7 * point + 4] = s[7 * point + 0] - lasts[3 * point + 0];
+			s[7 * point + 5] = s[7 * point + 1] - lasts[3 * point + 1];
+			s[7 * point + 6] = 0.;
 		}
 		
 
-		lasts[2 * (k + m * f_length) + 0] = s[5 * (k + m * f_length) + 0];
-		lasts[2 * (k + m * f_length) + 1] = s[5 * (k + m * f_length) + 1];
-	}
+		lasts[3 * point + 0] = s[7 * point + 0];
+		lasts[3 * point + 1] = s[7 * point + 1];
+		lasts[3 * point + 2] = s[7 * point + 2];
+	
 
-	for (j = m*length ; j < (m + 1)*length; j++)
+	for (j = o*length ; j < (o + 1)*length; j++)
 	{
 		b_length = j%length;
 
-		if (abs(s[5 * (k + m * f_length) + 2] - b_length) < 0.01)
+		if (abs(s[7 * point + 3] - b_length) < 0.01)
 		{
-			b_points[5 * j + 0] = s[5 * (k + m * f_length) + 0];
-			b_points[5 * j + 1] = s[5 * (k + m * f_length) + 1];
+			b_points[7 * j + 0] = s[7 * point + 0];
+			b_points[7 * j + 1] = s[7 * point + 1];
+			b_points[7 * j + 2] = s[7 * point + 2];
 
-			b_points[5 * j + 2] = s[5 * (k + m * f_length) + 3];
-			b_points[5 * j + 3] = s[5 * (k + m * f_length) + 4];
+			b_points[7 * j + 3] = s[7 * point + 4];
+			b_points[7 * j + 4] = s[7 * point + 5];
+			b_points[7 * j + 5] = s[7 * point + 6];
 
 		}
 		
@@ -184,28 +195,31 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 
 	int r_max = 2 * length / c_space;
 
-	float x_m(0.), y_m(0.), x_l(0.), y_l(0.);
+	float x_m(0.), y_m(0.), z_m(0.), x_l(0.), y_l(0.), z_l(0.);
 
 	j = blockIdx.x*blockDim.x + threadIdx.x;
 
 	
 	{
-		s[2 * j + 0] = (c_space*c_num) / 2. + b_points[5 * j + 0];
+		s[3 * j + 0] = (c_space*c_num) / 2. + b_points[7 * j + 0];
 
-		if (s[2 * j + 0] < 0) s[2 * j + 0] += XDIM;
-		else if (s[2 * j + 0] > XDIM) s[2 * j + 0] -= XDIM;
+		if (s[3 * j + 0] < 0) s[3 * j + 0] += XDIM;
+		else if (s[3 * j + 0] > XDIM) s[3 * j + 0] -= XDIM;
 
-		s[2 * j + 1] = b_points[5 * j + 1] + 1;
+		s[3 * j + 1] = b_points[7 * j + 1] + 1;
+		s[3 * j + 2] = b_points[7 * j + 2];
 
 		if (it == 0)
 		{
-			u_s[2 * j + 0] = 0.;
-			u_s[2 * j + 1] = 0.;
+			u_s[3 * j + 0] = 0.;
+			u_s[3 * j + 1] = 0.;
+			u_s[3 * j + 2] = 0.;
 		}
 		else
 		{
-			u_s[2 * j + 0] = b_points[5 * j + 2];
-			u_s[2 * j + 1] = b_points[5 * j + 3];
+			u_s[3 * j + 0] = b_points[7 * j + 3];
+			u_s[3 * j + 1] = b_points[7 * j + 4];
+			u_s[3 * j + 2] = b_points[7 * j + 5];
 		}
 
 		epsilon[j] = 1;
@@ -219,6 +233,7 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 
 			x_m = s[2 * j + 0];
 			y_m = s[2 * j + 1];
+			z_m = s[2 * j + 2];
 
 			for (r = 1; r < r_max; r++)
 			{
@@ -231,16 +246,18 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 					{
 						x_l = s[2 * (l + (m - r + c_num) * length) + 0];
 						y_l = s[2 * (l + (m - r + c_num) * length) + 1];
+						z_l = s[2 * (l + (m - r + c_num) * length) + 2];
 					}
 					else
 					{
 						x_l = s[2 * (l + (m - r) * length) + 0];
 						y_l = s[2 * (l + (m - r) * length) + 1];
+						z_l = s[2 * (l + (m - r) * length) + 2];
 					}
 
-					if (abs(x_l - x_m) < 1) xclose = 1;
+					if (abs(x_l - x_m) < 1 && z_l == z_m) xclose = 1;
 
-					if (abs(y_l - y_m) < 1) yclose = 1;
+					if (abs(y_l - y_m) < 1 && z_l == z_m) yclose = 1;
 
 					if (xclose && yclose) epsilon[j] = 0;
 
@@ -266,11 +283,11 @@ int main(int argc, char * argv[])
 
 	unsigned int c_fraction = 1;
 	unsigned int c_num = 6;
-	unsigned int c_rows = 2;
+	unsigned int c_rows = 1;			//ROWS IF CILIA IN SIMULATION
 	double Re = 1.0;
 	unsigned int XDIM = 192;
 	unsigned int YDIM = 192;
-	unsigned int ZDIM =  16; //SPACING BETWEEN ROWS OF CILIA FOR 2.5D SIMULATIONS
+	unsigned int ZDIM =  16; 
 	unsigned int T = 1000000;
 	unsigned int T_pow = 1;
 	float T_num = 1.0;
@@ -279,7 +296,7 @@ int main(int argc, char * argv[])
 	float I_pow = 1.0;
 	unsigned int INTERVAL = 500;
 	unsigned int LENGTH = 96;
-	unsigned int c_space = 48;
+	unsigned int c_space = 16;
 	bool ShARC = 0;
 	bool BigData = 0;
 	float G_PM = 6.; //6.
@@ -341,25 +358,28 @@ int main(int argc, char * argv[])
 	int p_step = T * c_fraction / c_num;
 
 	float * lasts;
-	lasts = new float[2 * c_num * LENGTH * 100];
+	lasts = new float[3 * c_num * c_rows * LENGTH * 100];
 
 	float * boundary;
-	boundary = new float[5 * c_num * LENGTH * 100];
+	boundary = new float[7 * c_num * c_rows * LENGTH * 100];
 
-	int Np = LENGTH * c_num;
+	int Np = LENGTH * c_num * c_rows;
 	
 	const int size = XDIM*YDIM*ZDIM;
 
-	for (k = 0; k < c_num * LENGTH * 100; k++)
+	for (k = 0; k < c_num * c_rows * LENGTH * 100; k++)
 	{
-		boundary[5 * k + 0] = 0.;
-		boundary[5 * k + 1] = 0.;
-		boundary[5 * k + 2] = 0.;
-		boundary[5 * k + 3] = 0.;
-		boundary[5 * k + 4] = 0.;
+		boundary[7 * k + 0] = 0.;
+		boundary[7 * k + 1] = 0.;
+		boundary[7 * k + 2] = 0.;
+		boundary[7 * k + 3] = 0.;
+		boundary[7 * k + 4] = 0.;
+		boundary[7 * k + 5] = 0.;
+		boundary[7 * k + 6] = 0.;
 
-		lasts[2 * k + 0] = 0.;
-		lasts[2 * k + 1] = 0.;
+		lasts[3 * k + 0] = 0.;
+		lasts[3 * k + 1] = 0.;
+		lasts[3 * k + 2] = 0.;
 
 	}
 
@@ -368,11 +388,11 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 128;
+	int blocksize = 128;											//for lattice boltzmann kernels
 
 	int gridsize = size / blocksize;
 
-	int blocksize2 = c_num*LENGTH*c_rows;
+	int blocksize2 = c_num * c_rows * LENGTH;							//for spread kernel
 
 	int gridsize2 = 1;
 
@@ -388,8 +408,8 @@ int main(int argc, char * argv[])
 		}
 	}
 
-	int blocksize3 = 48;
-	int gridsize3 = LENGTH * 100/blocksize3 * c_num;	
+	int blocksize3 = 96;											//for define_filament kernel
+	int gridsize3 = c_num * c_rows * LENGTH * 100 / blocksize3;
 
 	int blocksize4 = c_num*LENGTH;
 
@@ -512,9 +532,9 @@ int main(int argc, char * argv[])
 
 	double * F_E;							//ELASTIC LATTICE BOLTZMANN FORCE
 
-	F_E= new double[15 * size];
+	F_E = new double[15 * size];
 
-	unsigned int Ns = LENGTH * c_num;		//NUMBER OF BOUNDARY POINTS
+	unsigned int Ns = LENGTH * c_num * c_rows;		//NUMBER OF BOUNDARY POINTS
 
 
 	float * s;							//BOUNDARY POINTS
@@ -525,11 +545,11 @@ int main(int argc, char * argv[])
 
 	int * epsilon;
 
-	s = new float[2 * Ns];
+	s = new float[3 * Ns];
 
-	u_s = new float[2 * Ns];
+	u_s = new float[3 * Ns];
 
-	F_s = new float[2 * Ns * c_rows];
+	F_s = new float[2 * Ns];
 
 	epsilon = new int[Ns];
 
@@ -714,17 +734,17 @@ int main(int argc, char * argv[])
 
 	
 
-		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * c_rows * sizeof(float));
+		cudaStatus = cudaMalloc((void**)&d_F_s, 2 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of F_s failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_s, 2 * Ns * sizeof(float));
+		cudaStatus = cudaMalloc((void**)&d_s, 3 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of s failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_u_s, 2 * Ns * sizeof(float));
+		cudaStatus = cudaMalloc((void**)&d_u_s, 3 * Ns * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
@@ -734,17 +754,17 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMalloc of epsilon failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_lasts, 2 * c_num * LENGTH * 100 * sizeof(float));
+		cudaStatus = cudaMalloc((void**)&d_lasts, 3 * c_num * c_rows * LENGTH * 100 * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_boundary, 5 * c_num * LENGTH * 100 * sizeof(float));
+		cudaStatus = cudaMalloc((void**)&d_boundary, 7 * c_num * c_rows * LENGTH * 100 * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
 
-		cudaStatus = cudaMalloc((void**)&d_b_points, 5 * Np * sizeof(float));
+		cudaStatus = cudaMalloc((void**)&d_b_points, 7 * Np * sizeof(float));
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
@@ -811,13 +831,13 @@ int main(int argc, char * argv[])
 
 		int y = ((j - (j % XDIM)) / XDIM) % YDIM;
 
-			if (y < LENGTH*0.9) //LENGTH*0.9
+		if (y < LENGTH*0.9) //LENGTH*0.9
 			{
 				rho_P[j] = 0.95; //0.95
 				rho_M[j] = 0.05; //0.05
 			}
 
-			if (y >= LENGTH*0.9)
+		if (y >= LENGTH*0.9)
 			{
 				rho_P[j] = 0.05; //0.05
 				rho_M[j] = 0.95; //0.95
@@ -960,15 +980,15 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy of F_M failed\n");
 		}
 
-		cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * c_rows * sizeof(float), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_F_s, F_s, 2 * Ns * sizeof(float), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaMemcpy of F_s failed!\n");
 		}
 
-		cudaStatus = cudaMemcpy(d_lasts, lasts, 2 * c_num * LENGTH * 100 * sizeof(float), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_lasts, lasts, 3 * Ns * 100 * sizeof(float), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of lasts failed!\n"); }
 
-		cudaStatus = cudaMemcpy(d_boundary, boundary, 5 * c_num * LENGTH * 100 * sizeof(float), cudaMemcpyHostToDevice);
+		cudaStatus = cudaMemcpy(d_boundary, boundary, 7 * Ns * 100 * sizeof(float), cudaMemcpyHostToDevice);
 		if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of boundary failed!\n"); }
 
 
@@ -1133,7 +1153,7 @@ int main(int argc, char * argv[])
 
 		cudaEventCreate(&cilia_done);
 
-		define_filament << <gridsize3, blocksize3, 0, c_stream >> > (T, it, c_space, p_step, c_num, d_boundary, d_lasts, d_b_points, LENGTH);
+		define_filament << <gridsize3, blocksize3, 0, c_stream >> > (T, it, c_space, p_step, c_num, c_rows, d_boundary, d_lasts, d_b_points, LENGTH);
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1143,7 +1163,7 @@ int main(int argc, char * argv[])
 		cudaStreamWaitEvent(c_stream, fluid_done, 0);
 		cudaEventDestroy(fluid_done);
 
-		boundary_check << <gridsize4, blocksize4, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon, LENGTH);
+		boundary_check << <gridsize2, blocksize2, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon, LENGTH);
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1430,7 +1450,7 @@ int main(int argc, char * argv[])
 
 		
 
-		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM, c_space);						//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1558,32 +1578,31 @@ int main(int argc, char * argv[])
 
 				//cudaEventSynchronize(cilia_done);
 
-				cudaStatus = cudaMemcpy(s, d_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
+				cudaStatus = cudaMemcpy(s, d_s, 3 * Ns * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of s failed!\n"); }
 
-				cudaStatus = cudaMemcpy(u_s, d_u_s, 2 * Np * sizeof(float), cudaMemcpyDeviceToHost);
+				cudaStatus = cudaMemcpy(u_s, d_u_s, 3 * Ns * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of u_s failed!\n"); }
 
-				cudaStatus = cudaMemcpy(epsilon, d_epsilon, Np * sizeof(float), cudaMemcpyDeviceToHost);
+				cudaStatus = cudaMemcpy(epsilon, d_epsilon, Ns * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of epsilon failed!\n"); }
 
-				cudaStatus = cudaMemcpy(F_s, d_F_s, 2 * Ns * c_rows * sizeof(float), cudaMemcpyDeviceToHost);
+				cudaStatus = cudaMemcpy(F_s, d_F_s, 2 * Ns * sizeof(float), cudaMemcpyDeviceToHost);
 				if (cudaStatus != cudaSuccess) { fprintf(stderr, "cudaMemcpy of F_s failed!\n"); }
 
 				outfile = cilia_data + to_string(it / INTERVAL) + "-cilia.dat";
 
 				fsA.open(outfile.c_str());
 
-				for (int row = 0; row < c_rows; row++)
-				{
+				
 
 					for (k = 0; k < Ns; k++)
 					{
-						fsA << s[2 * k + 0] << "\t" << s[2 * k + 1] << "\t" << c_space*(row + 0.5) << "\t" << u_s[2 * k + 0] * s_scale << "\t" << u_s[2 * k + 1] * s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
-						if (k % LENGTH == (LENGTH - 1) || s[2 * k + 0] > XDIM - 1 || s[2 * k + 0] < 1) fsA << "\n";
-						if (k == 1 && row == c_rows - 1) fsA << "\n";
+						fsA << s[3 * k + 0] << "\t" << s[3 * k + 1] << "\t" << s[3 * k + 2] << "\t" << u_s[3 * k + 0] * s_scale << "\t" << u_s[3 * k + 1] * s_scale << "\t" << F_s[2 * k + 0] << "\t" << F_s[2 * k + 1] << "\t" << epsilon[k] << "\n"; //LOOP FOR Np
+						if (k % LENGTH == (LENGTH - 1) || s[3 * k + 0] > XDIM - 1 || s[3 * k + 0] < 1) fsA << "\n";
+						//if (k == 1 && row == c_rows - 1) fsA << "\n";
 					}
-				}
+				
 				fsA.close();
 
 			}

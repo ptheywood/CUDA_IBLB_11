@@ -18,6 +18,8 @@ __device__ const double c_l[15 * 3] =		//VELOCITY COMPONENTS
 	1.,1.,1. , -1.,-1.,-1. , 1.,1.,-1. , -1.,-1.,1. , 1.,-1.,1. , -1.,1.,-1. , -1.,1.,1. , 1.,-1.,-1.
 };
 
+__device__ unsigned int nodes[15 * 96 * 12];
+
 __device__ float d_delta(const float & xs, const float & ys, const float & zs, const int & x, const int & y, const int & z)
 {
 	float deltax(0.), deltay(0.), deltaz(0.), delta(0.);
@@ -29,9 +31,9 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 	double a(0.), b(0.), d(0.);
 	int c(0);
 
-	if (dx <= 1.5)
+	if (dz <= 1.5)
 	{
-		if (dx <= 0.5)
+		if (dz <= 0.5)
 		{
 			//deltax = (1. / 3.)*(1. + sqrt(-3. * dx*dx + 1.));
 			a = 0.33333;
@@ -48,7 +50,7 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 		}
 	}
 
-	deltax = a*(b + c*sqrt(-3.*d*d + 1));
+	deltaz = a*(b + c*sqrt(-3.*d*d + 1));
 
 	a = 0.;
 	b = 0.;
@@ -81,9 +83,9 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 	c = 0;
 	d = 0.;
 
-	if (dz <= 1.5)
+	if (dx <= 1.5)		///small amount of divergence here
 	{
-		if (dz <= 0.5)
+		if (dx <= 0.5)		///massive amount of divergence here (95%)
 		{
 			//deltay = (1. / 3.)*(1. + sqrt(-3. * dy*dy + 1.));
 			a = 0.33333;
@@ -100,7 +102,7 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 		}
 	}
 
-	deltaz = a*(b + c*sqrt(-3.*d*d + 1));
+	deltax = a*(b + c*sqrt(-3.*d*d + 1));
 
 	delta = deltax * deltay * deltaz;
 
@@ -118,46 +120,46 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 //	} while (assumed != old);
 //}
 
-__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM, const int YDIM, const int ZDIM, const int c_space)
+// rho[size]: fluid density	u[2*size]: fluid velocity	Ns: No. of cilia boundary points	u_s[2*Ns]: cilia velocity	F_s[2*Ns]: cilia force	
+// s[2*Ns]: cilia position	XDIM: x dimension
+
+__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM, const int YDIM, const int ZDIM)
 {
 
 	int i(0), j(0), k(0), l(0), x0(0), y0(0), z0(0), x(0), y(0), z(0);
 
 	double xs(0.), ys(0.), zs(0.), del(0.);
 
-	int size = XDIM*YDIM*ZDIM;
+	int size = XDIM*YDIM*ZDIM;		//size of simulated region
 
-	k = blockIdx.x*blockDim.x + threadIdx.x; //boundary point in whole system
-
-	l = k % Ns; //boundary point within row
-
-	int row = (k - l) / Ns; //row number
-
+	k = blockIdx.x*blockDim.x + threadIdx.x; //unique number for boundary points
 
 	{
 		F_s[2 * k + 0] = 0.;
 		F_s[2 * k + 1] = 0.;
 
-		xs = s[l * 2 + 0];
-		ys = s[l * 2 + 1];
-		zs = c_space*(row + 0.5);					//valid for full 3D simulations with duplicated rows
+		xs = s[k * 3 + 0];			//position of boundary point
+		ys = s[k * 3 + 1];			
+		zs = s[k * 3 + 1];			
 
-		x0 = nearbyint(xs);
+		x0 = nearbyint(xs);			//position of closest fluid node
 		y0 = nearbyint(ys);
 		z0 = nearbyint(zs);
 
-		for (i = 0; i < 15; i++)
+		for (i = 0; i < 15; i++)		//loop for all directions 
 		{
-			x = nearbyint(x0 + c_l[i * 3 + 0]);
+			x = nearbyint(x0 + c_l[i * 3 + 0]);		//position of adjacent fluid node in direction i
 			y = nearbyint(y0 + c_l[i * 3 + 1]);
 			z = nearbyint(z0 + c_l[i * 3 + 2]);
 
-			j = z*XDIM*YDIM + y*XDIM + x;
+			j = z*XDIM*YDIM + y*XDIM + x;			//unique number for this fluid node
 
-			del = d_delta(xs, ys, zs, x, y, z);
+			nodes[96 * k + i] = j;					//EXPERIMENTAL: a list of all fluid nodes (j) that are affected, arranged by boundary point (k);
 
-			F_s[2 * k + 0] += 2.*(1. * 1. * del) * rho[j] * (u_s[2 * l + 0] - u[0 * size + j]);
-			F_s[2 * k + 1] += 2.*(1. * 1. * del) * rho[j] * (u_s[2 * l + 1] - u[1 * size + j]);
+			del = d_delta(xs, ys, zs, x, y, z);		//delta fnction based on distance to fluid node
+
+			F_s[2 * k + 0] += 2.*(1. * 1. * del) * rho[j] * (u_s[3 * k + 0] - u[0 * size + j]);		//calculate force between boundary point and fluid node	
+			F_s[2 * k + 1] += 2.*(1. * 1. * del) * rho[j] * (u_s[3 * k + 1] - u[1 * size + j]);			
 		}
 
 	}
@@ -172,8 +174,6 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 {
 	int j(0), k(0), l(0), x(0), y(0), z(0);
 
-	//int n(0), m(0); 
-
 	float xs(0.), ys(0.), zs(0.), del(0.);
 
 	int size = YDIM * XDIM * ZDIM;
@@ -184,8 +184,6 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 
 	j = blockIdx.x*blockDim.x + threadIdx.x;	//unique thread ID
 
-	
-
 	force[0 * size + j] = 0.;		//initialise
 	force[1 * size + j] = 0.;
 
@@ -193,36 +191,36 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 	y = ((j - (j % XDIM)) / XDIM) % YDIM;
 	z = (j - j % (XDIM*YDIM)) / (XDIM*YDIM);
 
-	//this is the original code, without using shared memory
-	for (k = 0; k < Ns * c_rows; k++)
+	//----------------------without using shared memory-------------------------------
+	for (k = 0; k < Ns; k++)
 	{
 		l = k % Ns; 
 		
 		int row = (k - l) / Ns;
 
-		xs = s[l * 2 + 0];
-		ys = s[l * 2 + 1];
-		zs = c_space*(row + 0.5);				//Valid for 3D simulations with duplicated rows
+		xs = s[k * 3 + 0];			//position of boundary points
+		ys = s[k * 3 + 1];			
+		zs = s[k * 3 + 2];			
 
 		del = d_delta(xs, ys, zs, x, y, z);
 
-		force[0 * size + j] += F_s[2 * k + 0] * del * 1. * epsilon[l];
-		force[1 * size + j] += F_s[2 * k + 1] * del * 1. * epsilon[l];
+		force[0 * size + j] += F_s[2 * k + 0] * del * 1. * epsilon[k];
+		force[1 * size + j] += F_s[2 * k + 1] * del * 1. * epsilon[k];
 	}
 
 	//----------------------Using shared memory--------------------------------------
 
 	//int n(0), m(0); 
 
-	//n = threadIdx.x;		//thread ID within block
+	//n = threadIdx.x;		//thread id within block
 
 	//const int tile = 128;	//size of a tile, same as blockdim.x
 
-	//const int tpoints = tile / 2;
+	//const int tpoints = tile / 3;		//number of fluid nodes in each tile
 
-	//int numtiles = (2 * Ns - (2 * Ns) % tile) / (tile);	//number of full tiles to populate the whole array of values
+	//int numtiles = (3 * Ns - (3 * Ns) % tile) / (tile);	//number of full tiles to populate the whole array of values
 
-	//int excess = (2 * Ns) % tile;	//number of values outside of full tiles
+	//int excess = (3 * Ns) % tile;	//number of values outside of full tiles
 
 	//__shared__ float sh_s[tile];	//shared version of s array
 	//__shared__ float sh_F_s[tile];	//shared version of F_s array
@@ -238,21 +236,22 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 
 	//	sh_s[n] = s[m*tile + n];		//take values from next tile in the arrays to shared memory
 	//	sh_F_s[n] = F_s[m*tile + n];
-	//	if(n<tpoints) sh_epsilon[n] = epsilon[m*tpoints + n];
+	//	if(n<tpoints) sh_epsilon[n] = epsilon[m*tpoints + n];		///small amount of divergence here
 
 	//	__syncthreads();
 
 
-	//	for (k = 0; k < tpoints; k++)	//iterate for each value within a tile ("tile" values reporesent "tile/2" points with x and y coordinates)
+	//	for (k = 0; k < tpoints; k++)	//iterate for each value within a tile ("tile" values reporesent "tile/3" points with x and y and z coordinates)
 	//	{
-	//		xs = sh_s[2 * k + 0];		//x value
-	//		ys = sh_s[2 * k + 1];		//y value
-	//		zs = ZDIM*0.5;				//only valid for 2.5D simulations
+	//		xs = sh_s[3 * k + 0];		//x value
+	//		ys = sh_s[3 * k + 1];		//y value
+	//		zs = sh_s[3 * k + 2];		//z value
 
-	//		del = d_delta(xs, ys, zs, x, y, z);
+	//		del = d_delta(xs, ys, zs, x, y, z); //scale factor based on distance between boundary point (xs,ys,zs) and fluid node (x,y,z) 
 
 	//		force[0 * size + j] += sh_F_s[2 * k + 0] * del * 1. * sh_epsilon[k];		//calculate force x
 	//		force[1 * size + j] += sh_F_s[2 * k + 1] * del * 1. * sh_epsilon[k];		//calculate force y
+	//		//with current setup, there is no force in z direction
 
 	//		//__syncthreads();
 	//	}
@@ -277,9 +276,9 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 
 	//	for (k = 0; k < tpoints; k++)	//iterate for all remaining values
 	//	{
-	//		xs = sh_s[k * 2 + 0];		//x value
-	//		ys = sh_s[k * 2 + 1];		//y value
-	//		zs = ZDIM*0.5;				//only valid for 2.5D simulations
+	//		xs = sh_s[k * 3 + 0];		//x value
+	//		ys = sh_s[k * 3 + 1];		//y value
+	//		zs = sh_s[k * 3 + 2];		
 
 	//		del = d_delta(xs, ys, zs, x, y, z);
 
