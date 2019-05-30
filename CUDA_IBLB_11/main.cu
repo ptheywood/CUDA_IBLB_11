@@ -86,7 +86,6 @@ __global__ void define_filament(const int T, const int it, const double c_space,
 
 	float arcl(0.);
 	int phase(0);
-	int z_phase(0);
 
 	float b_length(0.);
 
@@ -775,7 +774,7 @@ int main(int argc, char * argv[])
 	
 	string output_data = "Data/Test/";
 
-	if(ShARC) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
+	if(GPU != 0) output_data = "/shared/soft_matter_physics2/User/Phq16ja/ShARC_Data/";
 	else output_data = "C:/Users/phq16ja/Documents/Data/";
 		//output_data = "//uosfstore.shef.ac.uk/shared/soft_matter_physics2/User/Phq16ja/Local_Data/";
 
@@ -1123,7 +1122,7 @@ int main(int argc, char * argv[])
 	if (BigData) fsC << "\nBig Data is ON" << endl;
 	else fsC << "\nBig Data is OFF" << endl;
 
-	if (ShARC) fsC << "Running on ShARC" << endl;
+	if (GPU != 0) fsC << "Running on ShARC" << endl;
 	else fsC << "Running on local GPU" << endl;
 
 
@@ -1671,11 +1670,11 @@ int main(int argc, char * argv[])
 
 			fsC << "\nCompletion time: " << asctime(timeinfo) << endl;
 
-			if (p_runtime >= 345600. && ShARC)
+			if (p_runtime >= 345600. && GPU != 0)
 			{
 				int runtime_percent = int(345600. / p_runtime * 100.);
 
-				fsC << "\nRuntime is longer than 4 days. ShARC will only run " << runtime_percent << "% of the simulation."<< endl;
+				cout << "\nRuntime is longer than 4 days. ShARC will only run " << runtime_percent << "% of the simulation."<< endl;
 			}
 
 
