@@ -297,7 +297,7 @@ int main(int argc, char * argv[])
 	unsigned int INTERVAL = 500;
 	unsigned int LENGTH = 96;
 	unsigned int c_space = 16;
-	bool ShARC = 0;
+	int GPU = 0;
 	bool BigData = 0;
 	float G_PM = 6.; //6.
 
@@ -313,7 +313,7 @@ int main(int argc, char * argv[])
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
 		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10] << ' ' << argv[11];
 
-	arg >> c_fraction >> c_num >> c_rows >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData;
+	arg >> c_fraction >> c_num >> c_rows >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> GPU >> BigData;
 
 	XDIM = c_num*c_space;
 	ZDIM = c_space*c_rows;
@@ -434,8 +434,8 @@ int main(int argc, char * argv[])
 
 
 
-	if(ShARC) cudaStatus = cudaSetDevice(3);
-	else cudaStatus = cudaSetDevice(0);
+	cudaStatus = cudaSetDevice(GPU);
+	
 
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "Failed to set CUDA device.\n");
