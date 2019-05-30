@@ -231,9 +231,9 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 	{
 			m = (j - j%length) / length;
 
-			x_m = s[2 * j + 0];
-			y_m = s[2 * j + 1];
-			z_m = s[2 * j + 2];
+			x_m = s[3 * j + 0];
+			y_m = s[3 * j + 1];
+			z_m = s[3 * j + 2];
 
 			for (r = 1; r < r_max; r++)
 			{
@@ -244,15 +244,15 @@ __global__ void boundary_check(const double c_space, const int c_num, const int 
 
 					if (m - r < 0)
 					{
-						x_l = s[2 * (l + (m - r + c_num) * length) + 0];
-						y_l = s[2 * (l + (m - r + c_num) * length) + 1];
-						z_l = s[2 * (l + (m - r + c_num) * length) + 2];
+						x_l = s[3 * (l + (m - r + c_num) * length) + 0];
+						y_l = s[3 * (l + (m - r + c_num) * length) + 1];
+						z_l = s[3 * (l + (m - r + c_num) * length) + 2];
 					}
 					else
 					{
-						x_l = s[2 * (l + (m - r) * length) + 0];
-						y_l = s[2 * (l + (m - r) * length) + 1];
-						z_l = s[2 * (l + (m - r) * length) + 2];
+						x_l = s[3 * (l + (m - r) * length) + 0];
+						y_l = s[3 * (l + (m - r) * length) + 1];
+						z_l = s[3 * (l + (m - r) * length) + 2];
 					}
 
 					if (abs(x_l - x_m) < 1 && z_l == z_m) xclose = 1;
@@ -282,7 +282,7 @@ int main(int argc, char * argv[])
 	//----------------------------INITIALISING----------------------------
 
 	unsigned int c_fraction = 1;
-	unsigned int c_num = 6;
+	unsigned int c_num = 12;
 	unsigned int c_rows = 1;			//ROWS IF CILIA IN SIMULATION
 	double Re = 1.0;
 	unsigned int XDIM = 192;
@@ -301,7 +301,7 @@ int main(int argc, char * argv[])
 	bool BigData = 0;
 	float G_PM = 6.; //6.
 
-	if (argc < 11)
+	if (argc < 12)
 	{
 		cout << "Too few arguments! " << argc - 1 << " entered of 11 required. " << endl;
 
@@ -311,9 +311,9 @@ int main(int argc, char * argv[])
 	stringstream arg;
 
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
-		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10];
+		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10] << ' ' << argv[11];
 
-	arg >> c_fraction >> c_num >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData;
+	arg >> c_fraction >> c_num >> c_rows >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> ShARC >> BigData;
 
 	XDIM = c_num*c_space;
 	ZDIM = c_space*c_rows;
@@ -411,21 +411,9 @@ int main(int argc, char * argv[])
 	int blocksize3 = 96;											//for define_filament kernel
 	int gridsize3 = c_num * c_rows * LENGTH * 100 / blocksize3;
 
-	int blocksize4 = c_num*LENGTH;
+	int blocksize4 = blocksize;
 
-	int gridsize4 = 1;
-
-	if (blocksize4 > 1024)
-	{
-		for (blocksize4 = 1024; blocksize4 > 0; blocksize4 -= LENGTH)
-		{
-			if ((c_num*LENGTH) % blocksize4 == 0)
-			{
-				gridsize4 = (c_num*LENGTH) / blocksize4;
-				break;
-			}
-		}
-	}
+	int gridsize4 = (15 * LENGTH * c_num * c_rows) / blocksize4;
 
 	cudaError_t cudaStatus;
 
@@ -440,6 +428,9 @@ int main(int argc, char * argv[])
 	double * Q_P;
 	cudaMallocHost(&Q_P, sizeof(double));
 	Q_P[0] = 0.;
+
+	int * nodes;
+	nodes = new int[15 * LENGTH * c_num * c_rows];
 
 
 
@@ -558,6 +549,11 @@ int main(int argc, char * argv[])
 		epsilon[k] = 1;
 	}
 
+	for (k = 0; k < 15 * LENGTH * c_num * c_rows; k++)
+	{
+		nodes[k] = 0;
+	}
+
 
 	//----------------------------------------CREATE DEVICE VARIABLES-----------------------------
 
@@ -613,7 +609,7 @@ int main(int argc, char * argv[])
 
 	double * d_Q_P;
 
-	
+	int * d_nodes;
 
 	float * d_lasts;
 
@@ -769,6 +765,10 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMalloc of u_s failed\n");
 		}
 
+		cudaStatus = cudaMalloc((void**)&d_nodes, 15 * LENGTH * c_num * c_rows * sizeof(int));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc of nodes failed\n");
+		}
 	}
 
 	//----------------------------------------DEFINE DIRECTORIES----------------------------------
@@ -1012,6 +1012,11 @@ int main(int argc, char * argv[])
 			fprintf(stderr, "cudaMemcpy of Q failed!\n");
 		}
 
+		cudaStatus = cudaMemcpy(d_nodes, nodes, 15 * LENGTH * c_num * c_rows * sizeof(int), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of nodes failed!\n");
+		}
+
 
 	}
 
@@ -1148,6 +1153,11 @@ int main(int argc, char * argv[])
 
 	for (it = 0; it < ITERATIONS; it++)
 	{
+
+		cudaStatus = cudaMemcpy(d_force, force, 3 * size * sizeof(double), cudaMemcpyHostToDevice);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy of force failed\n");
+		}
 
 		//--------------------------CILIA BEAT DEFINITION-------------------------
 
@@ -1450,7 +1460,7 @@ int main(int argc, char * argv[])
 
 		
 
-		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM);						//IB INTERPOLATION STEP
+		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM, d_nodes);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1459,7 +1469,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		spread << <gridsize, blocksize, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, ZDIM, d_epsilon, c_space, c_rows);						//IB SPREADING STEP
+		spread << <gridsize4, blocksize4, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, ZDIM, d_epsilon, c_space, d_nodes);						//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();

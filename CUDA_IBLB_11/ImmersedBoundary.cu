@@ -18,7 +18,18 @@ __device__ const double c_l[15 * 3] =		//VELOCITY COMPONENTS
 	1.,1.,1. , -1.,-1.,-1. , 1.,1.,-1. , -1.,-1.,1. , 1.,-1.,1. , -1.,1.,-1. , -1.,1.,1. , 1.,-1.,-1.
 };
 
-__device__ unsigned int nodes[15 * 96 * 12];
+
+__device__ void DoubleAtomicAdd1(double* address, double val)
+{
+	unsigned long long int* address_as_ull = (unsigned long long int*)address;
+	unsigned long long int old = *address_as_ull, assumed;
+	do
+	{
+		assumed = old;
+		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+	} while (assumed != old);
+}
+
 
 __device__ float d_delta(const float & xs, const float & ys, const float & zs, const int & x, const int & y, const int & z)
 {
@@ -39,14 +50,14 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 			a = 0.33333;
 			b = 1.;
 			c = 1;
-			d = dx;
+			d = dz;
 		}
 		else //deltax = (1. / 6.)*(5. - 3. * dx - sqrt(-3. * (1. - dx)*(1. - dx) + 1.));
 		{
 			a = 0.16667;
-			b = 5.-3.*dx;
+			b = 5.-3.*dz;
 			c = -1;
-			d = 1-dx;
+			d = 1-dz;
 		}
 	}
 
@@ -91,14 +102,14 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 			a = 0.33333;
 			b = 1.;
 			c = 1;
-			d = dz;
+			d = dx;
 		}
 		else //deltay = (1. / 6.)*(5. - 3. * dy - sqrt(-3. * (1. - dy)*(1. - dy) + 1.));
 		{
 			a = 0.16667;
-			b = 5. - 3.*dz;
+			b = 5. - 3.*dx;
 			c = -1;
-			d = 1 - dz;
+			d = 1 - dx;
 		}
 	}
 
@@ -109,21 +120,10 @@ __device__ float d_delta(const float & xs, const float & ys, const float & zs, c
 	return delta;
 }
 
-//__device__ void DoubleAtomicAdd(double* address, double val)
-//{
-//	unsigned long long int* address_as_ull = (unsigned long long int*)address;
-//	unsigned long long int old = *address_as_ull, assumed;
-//	do
-//	{
-//		assumed = old;
-//		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-//	} while (assumed != old);
-//}
-
 // rho[size]: fluid density	u[2*size]: fluid velocity	Ns: No. of cilia boundary points	u_s[2*Ns]: cilia velocity	F_s[2*Ns]: cilia force	
 // s[2*Ns]: cilia position	XDIM: x dimension
 
-__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM, const int YDIM, const int ZDIM)
+__global__ void interpolate(const double * rho, const double * u, const int Ns, const float * u_s, float * F_s, const float * s, const int XDIM, const int YDIM, const int ZDIM, int * nodes)
 {
 
 	int i(0), j(0), k(0), l(0), x0(0), y0(0), z0(0), x(0), y(0), z(0);
@@ -140,7 +140,7 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 		xs = s[k * 3 + 0];			//position of boundary point
 		ys = s[k * 3 + 1];			
-		zs = s[k * 3 + 1];			
+		zs = s[k * 3 + 2];			
 
 		x0 = nearbyint(xs);			//position of closest fluid node
 		y0 = nearbyint(ys);
@@ -154,9 +154,9 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 
 			j = z*XDIM*YDIM + y*XDIM + x;			//unique number for this fluid node
 
-			nodes[96 * k + i] = j;					//EXPERIMENTAL: a list of all fluid nodes (j) that are affected, arranged by boundary point (k);
+			nodes[15 * k + i] = j;					//EXPERIMENTAL: a list of all fluid nodes (j) that are affected, arranged by boundary point (k);
 
-			del = d_delta(xs, ys, zs, x, y, z);		//delta fnction based on distance to fluid node
+			del = d_delta(xs, ys, zs, x, y, z);		//delta function based on distance to fluid node
 
 			F_s[2 * k + 0] += 2.*(1. * 1. * del) * rho[j] * (u_s[3 * k + 0] - u[0 * size + j]);		//calculate force between boundary point and fluid node	
 			F_s[2 * k + 1] += 2.*(1. * 1. * del) * rho[j] * (u_s[3 * k + 1] - u[1 * size + j]);			
@@ -170,19 +170,27 @@ __global__ void interpolate(const double * rho, const double * u, const int Ns, 
 // rho[size]: fluid density	u[2*size]: fluid velocity	f[15*size]: density function		Ns: No. of cilia boundary points	u_s[2*Ns]: cilia velocity	F_s[2*Ns]: cilia force	
 // force[2*size]: fluid force	s[2*Ns]: cilia position	XDIM: x dimension	Q: Net flow		epsilon[Ns]: boundary point switching
 
-__global__ void spread(const int Ns, const float * u_s, const float * F_s, double * force, const float * s, const int XDIM, const int YDIM, const int ZDIM, const int * epsilon, const int c_space, const int c_rows)
+__global__ void spread(const int Ns, const float * u_s, const float * F_s, double * force, const float * s, const int XDIM, const int YDIM, const int ZDIM, const int * epsilon, const int c_space, int * nodes)
 {
-	int j(0), k(0), l(0), x(0), y(0), z(0);
+	int j(0), k(0), x(0), y(0), z(0);
+
+	int node(0);
 
 	float xs(0.), ys(0.), zs(0.), del(0.);
 
 	int size = YDIM * XDIM * ZDIM;
 
+	double farce1(0.), farce2(0.);
+
 	
 
 	////////////////////////////////////////////////////////////////START//////////////////////////////////////////////////
 
-	j = blockIdx.x*blockDim.x + threadIdx.x;	//unique thread ID
+	node = blockIdx.x*blockDim.x + threadIdx.x;	//unique thread ID
+
+	j = nodes[node];		//EXPERIMENTAL: using nodes[] to find unique id (j) of affected nodes
+
+	k = (node - (node % 15)) / 15; //EXPERIMENTAL: identifier for the boundary point that affects node j
 
 	force[0 * size + j] = 0.;		//initialise
 	force[1 * size + j] = 0.;
@@ -192,11 +200,8 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 	z = (j - j % (XDIM*YDIM)) / (XDIM*YDIM);
 
 	//----------------------without using shared memory-------------------------------
-	for (k = 0; k < Ns; k++)
+	//for (k = 0; k < Ns; k++)
 	{
-		l = k % Ns; 
-		
-		int row = (k - l) / Ns;
 
 		xs = s[k * 3 + 0];			//position of boundary points
 		ys = s[k * 3 + 1];			
@@ -204,8 +209,10 @@ __global__ void spread(const int Ns, const float * u_s, const float * F_s, doubl
 
 		del = d_delta(xs, ys, zs, x, y, z);
 
-		force[0 * size + j] += F_s[2 * k + 0] * del * 1. * epsilon[k];
-		force[1 * size + j] += F_s[2 * k + 1] * del * 1. * epsilon[k];
+		farce1 =  F_s[2 * k + 0] * del * 1. * epsilon[k];
+		DoubleAtomicAdd1(&force[0 * size + j], farce1);
+		farce2= F_s[2 * k + 1] * del * 1. * epsilon[k];
+		DoubleAtomicAdd1(&force[1 * size + j], farce2);
 	}
 
 	//----------------------Using shared memory--------------------------------------
