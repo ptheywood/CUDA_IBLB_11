@@ -82,17 +82,17 @@ __global__ void equilibrium(const double * u, const double * rho, double * f0, c
 
 __global__ void collision(const double * f0, const double * f, double * f1, const double * F, const double TAU, const int XDIM, const int YDIM, const int ZDIM)
 {
-	unsigned int j(0), i(0);											//iterators for fluid node (j) and population density within each node (i)
+	unsigned int j(0);											//iterators for fluid node (j) and population density within each node (i)
 
-	int size = XDIM*YDIM*ZDIM;											//total size of simulated fluid region
+	//int size = XDIM*YDIM*ZDIM;											//total size of simulated fluid region
 
 	int threadnum = blockIdx.x*blockDim.x + threadIdx.x;				//individual thread number
 
 	j = threadnum;														//one fluid node assigned to each thread
 
-	for (i = 0 ; i < 15 ; i++)											//for each population density within a fluid node
+	//for (i = 0 ; i < 15 ; i++)											//for each population density within a fluid node
 	{
-		f1[15 * j + i] = (1 - (1 / TAU))*f[15 * j + i] + (1 / TAU)*f0[15 * j + i] + F[15 * j + i];		//calculate population denity after 'collision' with equilibrium values and external forces
+		f1[j] = (1 - (1 / TAU))*f[j] + (1 / TAU)*f0[j] + F[j];		//calculate population denity after 'collision' with equilibrium values and external forces
 
 		// TRT method (no longer used)
 		/*
@@ -511,15 +511,15 @@ __global__ void macro(const double * f_P, const double * f_M, double * rho_P, do
 
 		double momentum[3] = { 0.,0.,0. };
 
-		double M_flux[3] = { 0.,0.,0. };
+		//double M_flux[3] = { 0.,0.,0. };
 
 		u[0 * size + j] = 0.;
 		u[1 * size + j] = 0.;
 		u[2 * size + j] = 0.;
 
-		u_M[0 * size + j] = 0.;
-		u_M[1 * size + j] = 0.;
-		u_M[2 * size + j] = 0.;
+		//u_M[0 * size + j] = 0.;
+		//u_M[1 * size + j] = 0.;
+		//u_M[2 * size + j] = 0.;
 
 		for (i = 0; i < 15; i++)
 		{
@@ -530,9 +530,9 @@ __global__ void macro(const double * f_P, const double * f_M, double * rho_P, do
 			momentum[1] += 1.*c_l[i * 3 + 1] * (f_P[15 * j + i] + f_M[15 * j + i]);
 			momentum[2] += 1.*c_l[i * 3 + 2] * (f_P[15 * j + i] + f_M[15 * j + i]);
 
-			M_flux[0] += 1.*c_l[i * 3 + 0] * (f_M[15 * j + i]);
-			M_flux[1] += 1.*c_l[i * 3 + 1] * (f_M[15 * j + i]);
-			M_flux[2] += 1.*c_l[i * 3 + 2] * (f_M[15 * j + i]);
+			//M_flux[0] += 1.*c_l[i * 3 + 0] * (f_M[15 * j + i]);
+			//M_flux[1] += 1.*c_l[i * 3 + 1] * (f_M[15 * j + i]);
+			//M_flux[2] += 1.*c_l[i * 3 + 2] * (f_M[15 * j + i]);
 		}
 
 		rho[j] = rho_P[j] + rho_M[j];
@@ -541,9 +541,9 @@ __global__ void macro(const double * f_P, const double * f_M, double * rho_P, do
 		u[1 * size + j] = 1.*(momentum[1]) / (1.*rho[j]);
 		u[2 * size + j] = 1.*(momentum[2]) / (1.*rho[j]);
 
-		u_M[0 * size + j] = 1.*(M_flux[0]) / (1.*rho_M[j]);
-		u_M[1 * size + j] = 1.*(M_flux[1]) / (1.*rho_M[j]);
-		u_M[2 * size + j] = 1.*(M_flux[2]) / (1.*rho_M[j]);
+		//u_M[0 * size + j] = 1.*(M_flux[0]) / (1.*rho_M[j]);
+		//u_M[1 * size + j] = 1.*(M_flux[1]) / (1.*rho_M[j]);
+		//u_M[2 * size + j] = 1.*(M_flux[2]) / (1.*rho_M[j]);
 
 		
 	}
@@ -809,9 +809,9 @@ __global__ void binaryforces(const double * rho_P, const double * rho_M, const d
 	momentum[1] = 0.;
 	momentum[2] = 0.;
 
-	
 		for (i = 0; i < 15; i++)
 		{
+			
 			momentum[0] += 1.*c_l[i * 3 + 0] * (f_P[15 * j + i] + f_M[15 * j + i]);
 			momentum[1] += 1.*c_l[i * 3 + 1] * (f_P[15 * j + i] + f_M[15 * j + i]);
 			momentum[2] += 1.*c_l[i * 3 + 2] * (f_P[15 * j + i] + f_M[15 * j + i]);
@@ -843,8 +843,8 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	double momentum[3];
 	double spd(0.);
 
-	double P_flux = 0.;
-	double M_flux = 0.;
+	//double P_flux = 0.;
+	//double M_flux = 0.;
 
 	double psi_P = 1. - exp(-1.*rho_P[j]);
 	double psi_M = 1. - exp(-1.*rho_M[j]);
@@ -872,8 +872,8 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 		momentum[1] += 1.*c_l[i * 3 + 1] * (f_P[15 * j + i] + f_M[15 * j + i]);
 		momentum[2] += 1.*c_l[i * 3 + 2] * (f_P[15 * j + i] + f_M[15 * j + i]);
 
-		P_flux += 1.*c_l[i * 3 + 0] * f_P[15 * j + i];
-		M_flux += 1.*c_l[i * 3 + 0] * f_M[15 * j + i];
+		//P_flux += 1.*c_l[i * 3 + 0] * f_P[15 * j + i];
+		//M_flux += 1.*c_l[i * 3 + 0] * f_M[15 * j + i];
 	}
 
 	u[0 * size + j] = (momentum[0] + 0.5*(force_P[0 * size + j] + force_M[0 * size + j])) / rho[j];
@@ -886,12 +886,12 @@ __global__ void forces(const double * rho_P, const double * rho_M, const double 
 	if (j%XDIM == XDIM - 5)
 	{
 		spd = u[0 * size + j] / (YDIM*ZDIM);
-		P_flux /= (YDIM*ZDIM);
-		M_flux /= (YDIM*ZDIM);
+		//P_flux /= (YDIM*ZDIM);
+		//M_flux /= (YDIM*ZDIM);
 
 		DoubleAtomicAdd(Q, spd);
-		DoubleAtomicAdd(Q_P, P_flux);
-		DoubleAtomicAdd(Q_M, M_flux);
+		//DoubleAtomicAdd(Q_P, P_flux);
+		//DoubleAtomicAdd(Q_M, M_flux);
 	}
 
 	__syncthreads();

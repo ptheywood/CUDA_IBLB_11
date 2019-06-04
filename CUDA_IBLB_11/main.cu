@@ -288,7 +288,7 @@ int main(int argc, char * argv[])
 	unsigned int YDIM = 192;
 	unsigned int ZDIM =  16; 
 	unsigned int T = 1000000;
-	unsigned int T_pow = 1;
+	unsigned int T_pow = 6;
 	float T_num = 1.0;
 	unsigned int ITERATIONS = T;
 	unsigned int P_num = 100;
@@ -300,7 +300,7 @@ int main(int argc, char * argv[])
 	bool BigData = 0;
 	float G_PM = 6.; //6.
 
-	if (argc < 12)
+	if (argc < 10)
 	{
 		cout << "Too few arguments! " << argc - 1 << " entered of 11 required. " << endl;
 
@@ -310,9 +310,9 @@ int main(int argc, char * argv[])
 	stringstream arg;
 
 	arg << argv[1] << ' ' << argv[2] << ' ' << argv[3] << ' ' << argv[4] << ' ' << argv[5] 
-		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9] << ' ' << argv[10] << ' ' << argv[11];
+		<< ' ' << argv[6] << ' ' << argv[7] << ' ' << argv[8] << ' ' << argv[9];
 
-	arg >> c_fraction >> c_num >> c_rows >> c_space >> Re >> T_num >> T_pow >> I_pow >> P_num >> GPU >> BigData;
+	arg >> c_fraction >> c_num >> c_rows >> c_space >> Re >> I_pow >> P_num >> BigData >> GPU;
 
 	XDIM = c_num*c_space;
 	ZDIM = c_space*c_rows;
@@ -387,32 +387,108 @@ int main(int argc, char * argv[])
 	//-------------------------------CUDA PARAMETERS DEFINITION-----------------------
 
 
-	int blocksize = 128;											//for lattice boltzmann kernels
+	int blocksize = 128;											//default
 
 	int gridsize = size / blocksize;
 
-	int blocksize2 = c_num * c_rows * LENGTH;							//for spread kernel
+	int blocksize3 = 96;											//for define_filament
+	int gridsize3 = c_num * c_rows * LENGTH * 100 / blocksize3;
 
-	int gridsize2 = 1;
+	int blocksize_bc = c_num * c_rows * LENGTH;						//for boundary_check
 
-	if (blocksize2 > 1024)
+	int gridsize_bc = 1;
+
+	if (blocksize_bc > 1024)
 	{
-		for (blocksize2 = 1024; blocksize2 > 0; blocksize2 -= LENGTH)
+		for (blocksize_bc = 1024; blocksize_bc > 0; blocksize_bc -= LENGTH)
 		{
-			if ((c_num*LENGTH*c_rows) % blocksize2 == 0)
+			if ((c_num*LENGTH*c_rows) % blocksize_bc == 0)
 			{
-				gridsize2 = (c_num*LENGTH*c_rows) / blocksize2;
+				gridsize_bc = (c_num*LENGTH*c_rows) / blocksize_bc;
 				break;
 			}
 		}
 	}
 
-	int blocksize3 = 96;											//for define_filament kernel
-	int gridsize3 = c_num * c_rows * LENGTH * 100 / blocksize3;
+	
 
-	int blocksize4 = blocksize;
+	int blocksize_eq = 64;											//for equilibrium
 
-	int gridsize4 = (15 * LENGTH * c_num * c_rows) / blocksize4;
+	int gridsize_eq = 15 * size / blocksize_eq;
+
+	int blocksize_c = 128;											//for collision
+
+	int gridsize_c = 15 * size / blocksize_c;
+
+	int blocksize_s = 128;											//for streaming
+
+	int gridsize_s = size / blocksize_s;
+
+	int blocksize_m = 128;											//for macro
+
+	int gridsize_m = size / blocksize_m;
+
+	int blocksize_bf = 64;											//for binaryforces
+
+	int gridsize_bf = size / blocksize_bf;
+
+	int blocksize_i = c_num * c_rows * LENGTH;						//for interpolate
+
+	int gridsize_i = 1;
+
+	if (blocksize_i > 1024)
+	{
+		for (blocksize_i = 1024; blocksize_i > 0; blocksize_i -= LENGTH)
+		{
+			if ((c_num*LENGTH*c_rows) % blocksize_i == 0)
+			{
+				gridsize_i = (c_num*LENGTH*c_rows) / blocksize_i;
+				break;
+			}
+		}
+	}
+
+	int blocksize_sp = 128;											//for spread
+
+	int gridsize_sp = (15 * LENGTH * c_num * c_rows) / blocksize_sp;
+
+	int mingridsize =  0;
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_eq, equilibrium, 0, 0);
+	
+	gridsize_eq = (size + blocksize_eq - 1) / blocksize_eq;
+
+	mingridsize = 0;
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_c, collision, 0, 0);
+	 
+	gridsize_c = (15 * size + blocksize_c - 1) / blocksize_c;
+
+	mingridsize = 0;
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_s, streaming, 0, 0);
+
+	gridsize_s = (size + blocksize_s - 1) / blocksize_s;
+
+	mingridsize = 0;
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_m, macro, 0, 128);
+
+	gridsize_m = (size + blocksize_m - 1) / blocksize_m;
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_bf, binaryforces, 0, 128);
+
+	gridsize_bf = (size + blocksize_bf - 1) / blocksize_bf;
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_i, interpolate, 0, 0);
+
+	gridsize_i = ((c_num*LENGTH*c_rows) + blocksize_i - 1) / blocksize_i;
+
+	mingridsize = 0;
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_sp, spread, 0, 128);
+
+	gridsize_sp = ((15 * LENGTH * c_num * c_rows) + blocksize_sp - 1) / blocksize_sp;
 
 	cudaError_t cudaStatus;
 
@@ -1021,9 +1097,9 @@ int main(int argc, char * argv[])
 
 	//------------------------------------------------------SET INITIAL DISTRIBUTION TO EQUILIBRIUM-------------------------------------------------
 
-	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, ZDIM, TAU_P);				//PCL INITIAL EQUILIBRIUM SET
+	equilibrium << <gridsize_eq, blocksize_eq >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, ZDIM, TAU_P);				//PCL INITIAL EQUILIBRIUM SET
 
-	equilibrium << <gridsize, blocksize >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, ZDIM, TAU_M);				//ML INITIAL EQUILIBRIUM SET
+	equilibrium << <gridsize_eq, blocksize_eq >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, ZDIM, TAU_M);				//ML INITIAL EQUILIBRIUM SET
 
 	{																										// Check for any errors launching the kernel
 		cudaStatus = cudaGetLastError();
@@ -1172,7 +1248,7 @@ int main(int argc, char * argv[])
 		cudaStreamWaitEvent(c_stream, fluid_done, 0);
 		cudaEventDestroy(fluid_done);
 
-		boundary_check << <gridsize2, blocksize2, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon, LENGTH);
+		boundary_check << <gridsize_bc, blocksize_bc, 0, c_stream >> > (c_space, c_num, XDIM, it, d_b_points, d_s, d_u_s, d_epsilon, LENGTH);
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1191,7 +1267,7 @@ int main(int argc, char * argv[])
 
 		
 
-		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, ZDIM, TAU_P);					//PCL EQUILIBRIUM STEP
+		equilibrium << <gridsize_eq, blocksize_eq, 0, f_stream >> > (d_u, d_rho_P, d_f0_P, d_force_P, d_F_P, XDIM, YDIM, ZDIM, TAU_P);					//PCL EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1200,7 +1276,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		equilibrium << <gridsize, blocksize, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, ZDIM, TAU_M);					//MUCUS EQUILIBRIUM STEP
+		equilibrium << <gridsize_eq, blocksize_eq, 0, f_stream >> > (d_u, d_rho_M, d_f0_M, d_force_M, d_F_M, XDIM, YDIM, ZDIM, TAU_M);					//MUCUS EQUILIBRIUM STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1311,7 +1387,7 @@ int main(int argc, char * argv[])
 
 		
 
-		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU_P, XDIM, YDIM, ZDIM);					//PCL COLLISION STEP
+		collision << <gridsize_c, blocksize_c, 0, f_stream >> > (d_f0_P, d_f_P, d_f1_P, d_F_P, TAU_P, XDIM, YDIM, ZDIM);					//PCL COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1320,7 +1396,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		collision << <gridsize, blocksize, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU_M, XDIM, YDIM, ZDIM);					// MUCUS COLLISION STEP
+		collision << <gridsize_c, blocksize_c, 0, f_stream >> > (d_f0_M, d_f_M, d_f1_M, d_F_M, TAU_M, XDIM, YDIM, ZDIM);					// MUCUS COLLISION STEP
 
 		{																										// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1369,7 +1445,7 @@ int main(int argc, char * argv[])
 */
 		//////////////////////////////////////////////
 
-		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_P, d_f_P, XDIM, YDIM, ZDIM, it);												//PCL STREAMING STEP
+		streaming << <gridsize_s, blocksize_s, 0, f_stream >> > (d_f1_P, d_f_P, XDIM, YDIM, ZDIM, it);												//PCL STREAMING STEP
 
 		{																											// Check for any errors launching the kernel
 			cudaStatus = cudaGetLastError();
@@ -1379,7 +1455,7 @@ int main(int argc, char * argv[])
 
 		}
 
-		streaming << <gridsize, blocksize, 0, f_stream >> > (d_f1_M, d_f_M, XDIM, YDIM, ZDIM, it);												//MUCUS STREAMING STEP
+		streaming << <gridsize_s, blocksize_s, 0, f_stream >> > (d_f1_M, d_f_M, XDIM, YDIM, ZDIM, it);												//MUCUS STREAMING STEP
 
 		{																											
 			cudaStatus = cudaGetLastError();
@@ -1429,7 +1505,7 @@ int main(int argc, char * argv[])
 		*/
 		//////////////////////////////////////////////
 
-		macro << <gridsize, blocksize, 0, f_stream >> > (d_f_P, d_f_M, d_rho_P, d_rho_M, d_rho, d_u, d_u_M, XDIM, YDIM, ZDIM);			//MACRO STEP
+		macro << <gridsize_m, blocksize_m, 0, f_stream >> > (d_f_P, d_f_M, d_rho_P, d_rho_M, d_rho, d_u, d_u_M, XDIM, YDIM, ZDIM);			//MACRO STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1440,7 +1516,7 @@ int main(int argc, char * argv[])
 		}
 		
 
-		binaryforces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force_P, d_force_M, d_force_E, d_u, d_u_M, XDIM, YDIM, ZDIM, G_PM, it);
+		binaryforces << <gridsize_bf, blocksize_bf, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force_P, d_force_M, d_force_E, d_u, d_u_M, XDIM, YDIM, ZDIM, G_PM, it);
 		
 
 		{
@@ -1459,7 +1535,7 @@ int main(int argc, char * argv[])
 
 		
 
-		interpolate << <gridsize2, blocksize2, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM, d_nodes);						//IB INTERPOLATION STEP
+		interpolate << <gridsize_i, blocksize_i, 0, f_stream >> > (d_rho, d_u, Ns, d_u_s, d_F_s, d_s, XDIM, YDIM, ZDIM, d_nodes);						//IB INTERPOLATION STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1468,7 +1544,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		spread << <gridsize4, blocksize4, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, ZDIM, d_epsilon, c_space, d_nodes);						//IB SPREADING STEP
+		spread << <gridsize_sp, blocksize_sp, 0, f_stream >> > (Ns, d_u_s, d_F_s, d_force, d_s, XDIM, YDIM, ZDIM, d_epsilon, c_space, d_nodes);						//IB SPREADING STEP
 
 		{
 			cudaStatus = cudaGetLastError();
@@ -1670,6 +1746,21 @@ int main(int argc, char * argv[])
 
 			fsC << "\nCompletion time: " << asctime(timeinfo) << endl;
 
+			int p_hours(0), p_mins(0);
+			double p_secs(0.);
+
+			if (p_runtime > 3600) p_hours = nearbyint(p_runtime / 3600);
+			if (p_runtime > 60) p_mins = nearbyint((p_runtime - p_hours * 3600) / 60);
+			p_secs = p_runtime - p_hours * 3600 - p_mins * 60;
+
+			cout << "Total runtime: ";
+			if (p_hours < 10) cout << "0";
+			cout << p_hours << ":";
+			if (p_mins < 10) cout << "0";
+			cout << p_mins << ":";
+			if (p_secs < 10) cout << "0";
+			cout << p_secs << endl;
+
 			if (p_runtime >= 345600. && GPU != 0)
 			{
 				int runtime_percent = int(345600. / p_runtime * 100.);
@@ -1694,8 +1785,8 @@ int main(int argc, char * argv[])
 	int hours(0), mins(0);
 	double secs(0.);
 
-	if (runtime > 3600) hours = nearbyint(runtime / 3600 - 0.5);
-	if (runtime > 60) mins = nearbyint((runtime - hours * 3600) / 60 - 0.5);
+	if (runtime > 3600) hours = nearbyint(runtime / 3600);
+	if (runtime > 60) mins = nearbyint((runtime - hours * 3600) / 60);
 	secs = runtime - hours * 3600 - mins * 60;
 
 	fsC.open(parameters.c_str(), ofstream::app);
