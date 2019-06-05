@@ -451,6 +451,10 @@ int main(int argc, char * argv[])
 
 	int mingridsize;
 
+	int blocksize_f = 128;											//for forces
+
+	int gridsize_f = size / blocksize_f;
+
 	
 	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_eq, equilibrium, 0, 0);
 	
@@ -528,6 +532,17 @@ int main(int argc, char * argv[])
 		gridsize_sp = ((15 * LENGTH * c_num * c_rows) + blocksize_sp - 1) / blocksize_sp;
 
 	}
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_eq, forces, 0, 0);
+
+	gridsize_f = (size + blocksize_f - 1) / blocksize_f;
+
+	while ((blocksize_f*gridsize_f) % size != 0)
+	{
+		blocksize_f -= 32;
+		gridsize_f = (size + blocksize_f - 1) / blocksize_f;
+
+	}
 	
 	cout << "\nkernel\tblocksize \tgridsize \tremainder" << endl;
 	cout << "eq:\t" << blocksize_eq << "\tx\t" << gridsize_eq << "\t+\t" << (blocksize_eq * gridsize_eq) % size << endl;
@@ -537,6 +552,7 @@ int main(int argc, char * argv[])
 	cout << "bf:\t" << blocksize_bf << "\tx\t" << gridsize_bf << "\t+\t" << (blocksize_bf * gridsize_bf) % size << endl;
 	cout << "in:\t" << blocksize_i << "\tx\t" << gridsize_i << "\t+\t" << (blocksize_i * gridsize_i) % (c_num*LENGTH*c_rows) << endl;
 	cout << "sp:\t" << blocksize_sp << "\tx\t" << gridsize_sp << "\t+\t" << (blocksize_sp * gridsize_sp) % (15*c_num*LENGTH*c_rows) << endl;
+	cout << "fo:\t" << blocksize_f << "\tx\t" << gridsize_f << "\t+\t" << (blocksize_f * gridsize_f) % size << endl;
 
 	cudaError_t cudaStatus;
 
@@ -1605,7 +1621,7 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		forces << <gridsize, blocksize, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_P, d_Q_M, XDIM, YDIM, ZDIM);
+		forces << <gridsize_f, blocksize_f, 0, f_stream >> > (d_rho_P, d_rho_M, d_rho, d_f_P, d_f_M, d_force, d_force_P, d_force_M, d_u, d_Q, d_Q_P, d_Q_M, XDIM, YDIM, ZDIM);
 		
 		cudaEventRecord(fluid_done, f_stream);
 		{
@@ -1837,18 +1853,20 @@ int main(int argc, char * argv[])
 	if (runtime > 60) mins = nearbyint((runtime - hours * 3600) / 60);
 	secs = runtime - hours * 3600 - mins * 60;
 
-	fsC.open(parameters.c_str(), ofstream::app);
+	//fsC.open(parameters.c_str(), ofstream::app);
 
-	fsC << "Total runtime: ";
-	if (hours < 10) fsC << "0";
-	fsC << hours << ":";
-	if (mins < 10) fsC << "0";
-	fsC << mins << ":";
-	if (secs < 10) fsC << "0";
-	fsC << secs << endl;
+	cout << "Total runtime: ";
+	if (hours < 10) cout << "0";
+	cout << hours << ":";
+	if (mins < 10) cout << "0";
+	cout << mins << ":";
+	if (secs < 10) cout << "0";
+	cout << secs << endl;
+
+	cout << "Total Flux: " << Q[0] * x_scale << endl;
 	
 
-	fsC.close();
+	//fsC.close();
 
 	cudaDeviceReset();
 
