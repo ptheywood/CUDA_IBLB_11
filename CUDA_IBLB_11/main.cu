@@ -17,10 +17,7 @@
 #include "seconds.h"
 
 
-
 using namespace std;
-
-
 
 //------------------------------------------PHYSICAL CONSTANTS----------------------------
 
@@ -414,7 +411,7 @@ int main(int argc, char * argv[])
 
 	int blocksize_eq = 64;											//for equilibrium
 
-	int gridsize_eq = 15 * size / blocksize_eq;
+	int gridsize_eq = size / blocksize_eq;
 
 	int blocksize_c = 128;											//for collision
 
@@ -452,43 +449,94 @@ int main(int argc, char * argv[])
 
 	int gridsize_sp = (15 * LENGTH * c_num * c_rows) / blocksize_sp;
 
-	int mingridsize =  0;
+	int mingridsize;
 
+	
 	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_eq, equilibrium, 0, 0);
 	
 	gridsize_eq = (size + blocksize_eq - 1) / blocksize_eq;
 
-	mingridsize = 0;
+	while ((blocksize_eq*gridsize_eq) % size != 0)
+	{
+		blocksize_eq -= 32;
+		gridsize_eq = (size + blocksize_eq - 1) / blocksize_eq;
+
+	}
 
 	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_c, collision, 0, 0);
 	 
 	gridsize_c = (15 * size + blocksize_c - 1) / blocksize_c;
 
-	mingridsize = 0;
+	while ((blocksize_c*gridsize_c) % (15 * size) != 0)
+	{
+		blocksize_c -= 32;
+		gridsize_c = (15 * size + blocksize_c - 1) / blocksize_c;
+
+	}
 
 	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_s, streaming, 0, 0);
 
 	gridsize_s = (size + blocksize_s - 1) / blocksize_s;
 
-	mingridsize = 0;
+	while ((blocksize_s*gridsize_s) % size != 0)
+	{
+		blocksize_s -= 32;
+		gridsize_s = (size + blocksize_s - 1) / blocksize_s;
 
-	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_m, macro, 0, 128);
+	}
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_m, macro, 0, 0);
 
 	gridsize_m = (size + blocksize_m - 1) / blocksize_m;
+
+	while ((blocksize_m*gridsize_m) % size != 0)
+	{
+		blocksize_m -= 32;
+		gridsize_m = (size + blocksize_m - 1) / blocksize_m;
+
+	}
 
 	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_bf, binaryforces, 0, 128);
 
 	gridsize_bf = (size + blocksize_bf - 1) / blocksize_bf;
 
+	while ((blocksize_bf*gridsize_bf) % size != 0)
+	{
+		blocksize_bf -= 32;
+		gridsize_bf = (size + blocksize_bf - 1) / blocksize_bf;
+
+	}
+
 	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_i, interpolate, 0, 0);
 
 	gridsize_i = ((c_num*LENGTH*c_rows) + blocksize_i - 1) / blocksize_i;
 
-	mingridsize = 0;
+	while ((blocksize_i*gridsize_i) % (LENGTH * c_num * c_rows) != 0)
+	{
+		blocksize_i -= 32;
+		gridsize_i = ((LENGTH * c_num * c_rows) + blocksize_i - 1) / blocksize_i;
 
-	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_sp, spread, 0, 128);
+	}
+
+	cudaOccupancyMaxPotentialBlockSize(&mingridsize, &blocksize_sp, spread, 0, 0);
 
 	gridsize_sp = ((15 * LENGTH * c_num * c_rows) + blocksize_sp - 1) / blocksize_sp;
+
+	while ((blocksize_sp*gridsize_sp) % (15 * LENGTH * c_num * c_rows) != 0)
+	{
+		blocksize_sp -= 32;
+		gridsize_sp = ((15 * LENGTH * c_num * c_rows) + blocksize_sp - 1) / blocksize_sp;
+
+	}
+	
+	cout << "\nkernel\tblocksize \tgridsize \tremainder" << endl;
+	cout << "eq:\t" << blocksize_eq << "\tx\t" << gridsize_eq << "\t+\t" << (blocksize_eq * gridsize_eq) % size << endl;
+	cout << "co:\t" << blocksize_c << "\tx\t" << gridsize_c << "\t+\t" << (blocksize_c * gridsize_c) % (15*size) << endl;
+	cout << "sp:\t" << blocksize_s << "\tx\t" << gridsize_s << "\t+\t" << (blocksize_s * gridsize_s) % size << endl;
+	cout << "ma:\t" << blocksize_m << "\tx\t" << gridsize_m << "\t+\t" << (blocksize_m * gridsize_m) % size << endl;
+	cout << "bf:\t" << blocksize_bf << "\tx\t" << gridsize_bf << "\t+\t" << (blocksize_bf * gridsize_bf) % size << endl;
+	cout << "in:\t" << blocksize_i << "\tx\t" << gridsize_i << "\t+\t" << (blocksize_i * gridsize_i) % (c_num*LENGTH*c_rows) << endl;
+	cout << "sp:\t" << blocksize_sp << "\tx\t" << gridsize_sp << "\t+\t" << (blocksize_sp * gridsize_sp) % (15*c_num*LENGTH*c_rows) << endl;
 
 	cudaError_t cudaStatus;
 
@@ -898,7 +946,7 @@ int main(int argc, char * argv[])
 
 
 
-	//----------------------------------------INITIALISE ALL CELL VALUES---------------------------------------
+	//----------------------------------------INITIALISE ALL NODE VALUES---------------------------------------
 
 	for (j = 0; j < XDIM*YDIM*ZDIM; j++)
 	{
@@ -1125,7 +1173,7 @@ int main(int argc, char * argv[])
 
 	}
 
-	srand(3);
+	//srand(3);
 
 	for (j = 0; j < XDIM*YDIM*ZDIM; j++)
 	{
@@ -1753,7 +1801,7 @@ int main(int argc, char * argv[])
 			if (p_runtime > 60) p_mins = nearbyint((p_runtime - p_hours * 3600) / 60);
 			p_secs = p_runtime - p_hours * 3600 - p_mins * 60;
 
-			cout << "Total runtime: ";
+			cout << "Projected runtime: ";
 			if (p_hours < 10) cout << "0";
 			cout << p_hours << ":";
 			if (p_mins < 10) cout << "0";

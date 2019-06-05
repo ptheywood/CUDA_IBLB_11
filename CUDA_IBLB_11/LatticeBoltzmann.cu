@@ -504,7 +504,7 @@ __global__ void macro(const double * f_P, const double * f_M, double * rho_P, do
 
 		int size = XDIM*YDIM*ZDIM;
 
-		rho[j] = 0;
+		rho[j] = 0.;
 
 		rho_P[j] = 0.;
 		rho_M[j] = 0.;
